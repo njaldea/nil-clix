@@ -1,8 +1,12 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-    "description": "",
-    "name": "nil-",
+    "description": "Simplified argument parsing (from boost::program_options)",
+    "name": "nil-clix",
     "dependencies": [
+        {
+            "name": "boost-program-options",
+            "version>=": "1.82.0"
+        }
     ],
     "features": {
         "test": {

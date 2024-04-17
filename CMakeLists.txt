@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.27.1)
 
-project(nil- CXX)
+project(nil-clix CXX)
 
 include(cmake/package.cmake)
 include(cmake/toolchain.cmake)
