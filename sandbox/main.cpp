@@ -1,56 +1,70 @@
+
 #include <nil/clix.hpp>
 
 #include <iostream>
 
-template <int V>
-struct Command final: nil::clix::Command
+template <int I>
+void apply_runner(nil::clix::Node& node)
 {
-    std::string usage() const override
-    {
-        return " >  <binary> [OPTIONS...]";
-    }
-
-    nil::clix::OptionInfo options() const override
-    {
-        // clang-format off
-        return nil::clix::Builder()
-            .flag  ("help",   { .skey ='h', .msg = "show this help"                                        })
-            .flag  ("spawn",  { .skey ='s', .msg = "spawn"                                                 })
-            .number("thread", { .skey ='t', .msg = "number of threads"                                     })
-            .number("job",    { .skey ='j', .msg = "number of jobs"    , .fallback = 1     , .implicit = 0 })
-            .param ("param",  { .skey ='p', .msg = "default param"     , .fallback = "123"                 })
-            .params("mparam", { .skey ='m', .msg = "multiple params"                                       })
-            .build();
-        // clang-format on
-    }
-
-    int run(const nil::clix::Options& options) const override
-    {
-        if (options.flag("help"))
+    node.runner(
+        [](const nil::clix::Options& options)
         {
-            options.help(std::cout);
+            if (options.flag("help"))
+            {
+                options.help(std::cout);
+                return 0;
+            }
+            std::cout                                                     //
+                << "flag   -s: " << options.flag("spawn") << std::endl    //
+                << "number -t: " << options.number("thread") << std::endl //
+                << "number -j: " << options.number("job") << std::endl    //
+                << "param  -p: " << options.param("param") << std::endl   //
+                << "params -m: " << std::endl;
+            for (const auto& item : options.params("mparam"))
+            {
+                std::cout << " -  " << item << std::endl;
+            }
             return 0;
         }
-        std::cout                                                     //
-            << "flag   -s: " << options.flag("spawn") << std::endl    //
-            << "number -t: " << options.number("thread") << std::endl //
-            << "number -j: " << options.number("job") << std::endl    //
-            << "param  -p: " << options.param("param") << std::endl   //
-            << "params -m: " << std::endl;
-        for (const auto& item : options.params("mparam"))
-        {
-            std::cout << " -  " << item << std::endl;
-        }
-        return 0;
-    }
-};
+    );
+}
+
+void apply_options(nil::clix::Node& node)
+{
+    // clang-format off
+    node.flag  ("help",   { .skey ='h', .msg = "show this help"                                        });
+    node.flag  ("spawn",  { .skey ='s', .msg = "spawn"                                                 });
+    node.number("thread", { .skey ='t', .msg = "number of threads"                                     });
+    node.number("job",    { .skey ='j', .msg = "number of jobs"    , .fallback = 1     , .implicit = 0 });
+    node.param ("param",  { .skey ='p', .msg = "default param"     , .fallback = "123"                 });
+    node.params("mparam", { .skey ='m', .msg = "multiple params"                                       });
+    // clang-format on
+}
 
 int main(int argc, const char** argv)
 {
-    auto root = nil::clix::Node::root<Command<0>>();
-    root.add<Command<1>>("hello", "command for 1:hello") //
-        .add<Command<2>>("world", "command for 2:world");
-    root.add<Command<3>>("another", "command for 3:another") //
-        .add<Command<4>>("dimension", "command for 4:dimension");
+    nil::clix::Node root;
+    apply_runner<0>(root);
+    apply_options(root);
+    root.add(
+        "hello",
+        "command for 1:hello",
+        [](nil::clix::Node& node)
+        {
+            apply_runner<1>(node);
+            apply_options(node);
+            node.add("world", "command for 2:world", apply_runner<2>);
+        }
+    );
+    root.add(
+        "another",
+        "command for 3:another",
+        [](nil::clix::Node& node)
+        {
+            apply_runner<3>(node);
+            apply_options(node);
+            node.add("dimension", "command for 4:vector", apply_runner<4>);
+        }
+    );
     return root.run(argc, argv);
 }

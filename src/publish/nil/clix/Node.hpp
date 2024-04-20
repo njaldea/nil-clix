@@ -1,107 +1,53 @@
 #pragma once
 
+#include "conf/Flag.hpp"
+#include "conf/Number.hpp"
+#include "conf/Param.hpp"
+#include "conf/Params.hpp"
+
 #include <memory>
 #include <string>
 #include <string_view>
-#include <type_traits>
-#include <utility>
 #include <vector>
 
-namespace nil::clix {
-struct Command;
+namespace nil::clix
+{
+    struct Options;
+    struct IOption;
+    class Node;
 
-class Node;
+    struct SubNode
+    {
+        std::string key;
+        std::string description;
+        void (*exec)(Node&);
+    };
 
-struct SubNode {
-  std::string key;
-  std::string description;
-  std::unique_ptr<Node> instance;
-};
+    class Node final
+    {
+    public:
+        Node();
+        ~Node() noexcept;
 
-class Node final {
-public:
-  /**
-   * @brief create a Node with base nil::clix::Command
-   *
-   * @return `Node`
-   */
-  static Node root();
+        Node(Node&&) noexcept = delete;
+        Node& operator=(Node&&) noexcept = delete;
+        Node(const Node&) = delete;
+        Node& operator=(const Node&) = delete;
 
-  /**
-   * @brief create a Node with custom Command
-   *
-   * @tparam T    custom command inheriting from nil::clix::Command
-   * @tparam Args constructor arguments of T
-   * @param args  constructor arguments to be passed to T
-   *
-   * @return `Node`
-   */
-  template <typename T, typename... Args> static Node root(Args &&...args) {
-    static_assert(std::is_base_of_v<Command, T>,
-                  "T must inherit from nil::clix::Command");
-    return Node(std::make_unique<T>(std::forward<Args>(args)...));
-  }
+        void runner(int (*exec)(const nil::clix::Options&));
+        void flag(std::string lkey, conf::Flag options = {});
+        void number(std::string lkey, conf::Number options = {});
+        void param(std::string lkey, conf::Param options = {});
+        void params(std::string lkey, conf::Params options = {});
+        void add(std::string key, std::string description, void (*sub_noder)(Node&));
+        int run(int argc, const char* const* argv) const;
 
-  /**
-   * @brief Construct a new Node object
-   *
-   * @param command   Command instance
-   */
-  explicit Node(std::unique_ptr<Command> command);
-  ~Node() noexcept;
+    private:
+        int (*exec)(const nil::clix::Options&) = nullptr;
 
-  Node(Node &&) noexcept = delete;
-  Node &operator=(Node &&) noexcept = delete;
+        std::vector<SubNode> sub;
+        std::vector<std::unique_ptr<IOption>> opts;
 
-  Node(const Node &) = delete;
-  Node &operator=(const Node &) = delete;
-
-  /**
-   * @brief add nil::clix::Command as subnode
-   *
-   * @param key           subcommand
-   * @param description   message to be used when displaying help]
-   *
-   * @return `Node&`      created Node
-   */
-  Node &add(std::string key, std::string description);
-
-  /**
-   * @brief add a custom Command
-   *
-   * @tparam T            custom command inheriting from nil::clix::Command
-   * @tparam Args         constructor arguments of T
-   * @param key           subcommand
-   * @param description   message to be used when displaying help
-   * @param args          constructor arguments to be passed to T
-   *
-   * @return `Node&`      created Node
-   */
-  template <typename T, typename... Args>
-  Node &add(std::string key, std::string description, Args &&...args) {
-    static_assert(std::is_base_of_v<Command, T>,
-                  "T must inherit from nil::clix::Command");
-    auto instance = std::make_unique<T>(std::forward<Args>(args)...);
-    return add(std::move(key), std::move(description), std::move(instance));
-  }
-
-  /**
-   * @brief parse and execute the arguments
-   *
-   * @param argc      1 minus the number of items in argv.
-   * @param argv      at least 2 { PROGRAM_NAME, SENTINEL, ...REST }
-   *
-   * @return `int`    STATUS CODE
-   */
-  int run(int argc, const char *const *argv) const;
-
-private:
-  std::unique_ptr<Command> command;
-
-  std::vector<SubNode> sub;
-
-  Node &add(std::string key, std::string description,
-            std::unique_ptr<Command> command);
-  const Node *find(std::string_view name) const;
-};
+        const SubNode* find(std::string_view name) const;
+    };
 } // namespace nil::clix
