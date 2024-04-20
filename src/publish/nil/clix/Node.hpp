@@ -5,6 +5,7 @@
 #include "conf/Param.hpp"
 #include "conf/Params.hpp"
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -20,7 +21,7 @@ namespace nil::clix
     {
         std::string key;
         std::string description;
-        void (*exec)(Node&);
+        std::function<void(Node&)> exec;
     };
 
     class Node final
@@ -29,21 +30,23 @@ namespace nil::clix
         Node();
         ~Node() noexcept;
 
-        Node(Node&&) noexcept = delete;
-        Node& operator=(Node&&) noexcept = delete;
+        Node(Node&&) noexcept;
+        Node& operator=(Node&&) noexcept;
         Node(const Node&) = delete;
         Node& operator=(const Node&) = delete;
 
-        void runner(int (*exec)(const nil::clix::Options&));
         void flag(std::string lkey, conf::Flag options = {});
         void number(std::string lkey, conf::Number options = {});
         void param(std::string lkey, conf::Param options = {});
         void params(std::string lkey, conf::Params options = {});
-        void add(std::string key, std::string description, void (*sub_noder)(Node&));
+
+        void runner(std::function<int(const nil::clix::Options&)> new_exec);
+        void add(std::string key, std::string description, std::function<void(Node&)> predicate);
+
         int run(int argc, const char* const* argv) const;
 
     private:
-        int (*exec)(const nil::clix::Options&) = nullptr;
+        std::function<int(const nil::clix::Options&)> exec;
 
         std::vector<SubNode> sub;
         std::vector<std::unique_ptr<IOption>> opts;

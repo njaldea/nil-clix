@@ -1,5 +1,6 @@
 
 #include <nil/clix.hpp>
+#include <nil/clix/runners/Help.hpp>
 
 #include <iostream>
 
@@ -41,7 +42,7 @@ void apply_options(nil::clix::Node& node)
     // clang-format on
 }
 
-int main(int argc, const char** argv)
+nil::clix::Node compose()
 {
     nil::clix::Node root;
     apply_runner<0>(root);
@@ -49,11 +50,15 @@ int main(int argc, const char** argv)
     root.add(
         "hello",
         "command for 1:hello",
-        [](nil::clix::Node& node)
+        [](auto& node)
         {
             apply_runner<1>(node);
             apply_options(node);
-            node.add("world", "command for 2:world", apply_runner<2>);
+            node.add(
+                "world",
+                "command for 2:world",
+                [](auto& n) { n.runner(nil::clix::runners::Help(std::cout)); }
+            );
         }
     );
     root.add(
@@ -63,8 +68,17 @@ int main(int argc, const char** argv)
         {
             apply_runner<3>(node);
             apply_options(node);
-            node.add("dimension", "command for 4:vector", apply_runner<4>);
+            node.add(
+                "dimension",
+                "command for 4:vector",
+                [](auto& n) { n.runner(nil::clix::runners::Help(std::cout)); }
+            );
         }
     );
-    return root.run(argc, argv);
+    return root;
+}
+
+int main(int argc, const char** argv)
+{
+    return compose().run(argc, argv);
 }

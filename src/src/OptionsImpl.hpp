@@ -27,7 +27,6 @@ namespace nil::clix
         Impl(const Impl&) = delete;
         Impl& operator=(const Impl&) = delete;
 
-        std::string usage;
         boost::program_options::options_description desc;
         boost::program_options::variables_map vm;
         std::vector<std::tuple<std::string, std::string>> sub;

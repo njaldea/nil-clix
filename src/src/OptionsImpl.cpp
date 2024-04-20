@@ -46,9 +46,10 @@ namespace nil::clix
 
     void Options::Impl::help(std::ostream& os) const
     {
-        if (!usage.empty())
+        if (desc.options().empty() && sub.empty())
         {
-            os << usage << '\n';
+            os << "No option available\n";
+            return;
         }
 
         if (!desc.options().empty())

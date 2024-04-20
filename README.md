@@ -12,8 +12,8 @@ Boost program options does not inherently support nesting of commands. This Node
 
 - construct a `Node`
 - add options via `flag`|`number`|`param`|`params`
-- add subnodes via `node.add<AnotherCommand>("key")`
-- trigger run to parse arguments and execute the `runner`
+- add subnodes via `node.add("key", "description", subnode_predicate)`
+- trigger run to parse arguments
 
 ### `nil::clix::Options`
 
