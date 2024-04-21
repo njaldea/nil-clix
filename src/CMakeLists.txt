@@ -12,7 +12,7 @@ set(
         publish/nil/clix/conf/Number.hpp
         publish/nil/clix/conf/Param.hpp
         publish/nil/clix/conf/Params.hpp
-        publish/nil/clix/runners/Help.hpp
+        publish/nil/clix/prebuilt/Help.hpp
         src/Option.hpp
         src/OptionsImpl.hpp
 )
@@ -23,7 +23,7 @@ set(
         src/Option.cpp
         src/Options.cpp
         src/OptionsImpl.cpp
-        src/runners/Help.cpp
+        src/prebuilt/Help.cpp
 )
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
