@@ -1,3 +1,4 @@
+#include "nil/clix/node.hpp"
 #include <nil/clix.hpp>
 
 #include <gmock/gmock.h>
@@ -47,20 +48,19 @@ namespace
 
     void apply(nil::clix::Node& node)
     {
-        node.flag("flag", {.skey = 'f', .msg = "flag msg"});
-        node.number("number", {.skey = 'n', .msg = "number msg"});
-        node.param("param", {.skey = 'p', .msg = "param msg", .fallback = "default value"});
-        node.params("mparam", {.skey = 'm', .msg = "mparam msg"});
-        node.runner( //
-            [](const nil::clix::Options& options) { return MockCall::global->Call(options); }
-        );
+        flag(node, "flag", {.skey = 'f', .msg = "flag msg"});
+        number(node, "number", {.skey = 'n', .msg = "number msg"});
+        param(node, "param", {.skey = 'p', .msg = "param msg", .fallback = "default value"});
+        params(node, "mparam", {.skey = 'm', .msg = "mparam msg"});
+        use(node,
+            [](const nil::clix::Options& options) { return MockCall::global->Call(options); });
     }
 } // namespace
 
 TEST(cli, base)
 {
     auto args = std::array{"Program"};
-    ASSERT_EQ(nil::clix::Node().run(args.size(), args.data()), 0);
+    ASSERT_EQ(run(nil::clix::create_node(), args.size(), args.data()), 0);
 }
 
 TEST(cli, depth_one)
@@ -69,10 +69,10 @@ TEST(cli, depth_one)
 
     const auto matches = [](const nil::clix::Options& output)
     {
-        return !output.flag("flag")                     //
-            && output.number("number") == 0             //
-            && output.param("param") == "default value" //
-            && output.params("mparam").empty();
+        return !flag(output, "flag")                     //
+            && number(output, "number") == 0             //
+            && param(output, "param") == "default value" //
+            && params(output, "mparam").empty();
     };
     EXPECT_CALL(called.mock, Call(testing::Truly(matches)))
         .Times(1)
@@ -81,49 +81,47 @@ TEST(cli, depth_one)
 
     auto args = std::array{"Program"};
 
-    nil::clix::Node node;
+    auto node = nil::clix::create_node();
     apply(node);
     apply(node);
-    ASSERT_EQ(node.run(args.size(), args.data()), 0);
+    ASSERT_EQ(run(node, args.size(), args.data()), 0);
 }
 
 TEST(cli, depth_deep)
 {
     MockCall called;
 
-    nil::clix::Node root;
+    auto root = nil::clix::create_node();
 
     apply(root);
 
-    root.add(
+    sub(root,
         "sub1",
         "description of sub1",
         [](nil::clix::Node& sub1)
         {
             apply(sub1);
-            sub1.add(
+            sub(sub1,
                 "sub2",
                 "description of sub2",
                 [](nil::clix::Node& sub2)
                 {
                     apply(sub2);
-                    sub2.add("sub3", "description of sub3", apply);
-                }
-            );
-        }
-    );
+                    sub(sub2, "sub3", "description of sub3", apply);
+                });
+        });
 
     const auto matches = [](std::string h)
     {
         return [h = std::move(h)](const nil::clix::Options& output)
         {
             std::ostringstream oss;
-            output.help(oss);
-            return oss.str() == help(h)                     //
-                && !output.flag("flag")                     //
-                && output.number("number") == 0             //
-                && output.param("param") == "default value" //
-                && output.params("mparam").empty();
+            help(output, oss);
+            return oss.str() == help(h)                      //
+                && !flag(output, "flag")                     //
+                && number(output, "number") == 0             //
+                && param(output, "param") == "default value" //
+                && params(output, "mparam").empty();
         };
     };
     {
@@ -133,7 +131,7 @@ TEST(cli, depth_deep)
             .RetiresOnSaturation();
 
         auto args = std::array{"Program"};
-        ASSERT_EQ(root.run(args.size(), args.data()), 0);
+        ASSERT_EQ(run(root, args.size(), args.data()), 0);
     }
     {
         EXPECT_CALL(called.mock, Call(testing::Truly(matches("2"))))
@@ -142,7 +140,7 @@ TEST(cli, depth_deep)
             .RetiresOnSaturation();
 
         auto args = std::array{"Program", "sub1"};
-        ASSERT_EQ(root.run(args.size(), args.data()), 0);
+        ASSERT_EQ(run(root, args.size(), args.data()), 0);
     }
     {
         EXPECT_CALL(called.mock, Call(testing::Truly(matches("3"))))
@@ -151,6 +149,6 @@ TEST(cli, depth_deep)
             .RetiresOnSaturation();
 
         auto args = std::array{"Program", "sub1", "sub2"};
-        ASSERT_EQ(root.run(args.size(), args.data()), 0);
+        ASSERT_EQ(run(root, args.size(), args.data()), 0);
     }
 }

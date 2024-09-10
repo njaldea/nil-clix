@@ -5,24 +5,20 @@ find_package(Boost COMPONENTS program_options REQUIRED)
 set(
     HEADERS
         publish/nil/clix.hpp
-        publish/nil/clix/Node.hpp
-        publish/nil/clix/Options.hpp
-        publish/nil/clix/IOption.hpp
+        publish/nil/clix/node.hpp
+        publish/nil/clix/options.hpp
         publish/nil/clix/conf/Flag.hpp
         publish/nil/clix/conf/Number.hpp
         publish/nil/clix/conf/Param.hpp
         publish/nil/clix/conf/Params.hpp
         publish/nil/clix/prebuilt/Help.hpp
-        src/Option.hpp
-        src/OptionsImpl.hpp
 )
 
 set(
     SOURCES
-        src/Node.cpp
-        src/Option.cpp
-        src/Options.cpp
-        src/OptionsImpl.cpp
+        src/structs.hpp
+        src/node.cpp
+        src/options.cpp
         src/prebuilt/Help.cpp
 )
 

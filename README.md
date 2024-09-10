@@ -4,28 +4,34 @@ This library is only intended to simplify arg parsing and allow nesting of sub c
 
 Simplification is done by limiting the touch points to the internal library and providing more concrete option types with very opinionated defaults.
 
-## Classes
+## Objects
 
 ### `nil::clix::Node`
 
 Boost program options does not inherently support nesting of commands. This Node is simply a way to chain the commands.
 
-- construct a `Node`
-- add options via `flag`|`number`|`param`|`params`
-- add subnodes via `node.add("key", "description", subnode_predicate)`
-- trigger run to parse arguments
+| method                                        | decription                                                                |
+| --------------------------------------------- | ------------------------------------------------------------------------- |
+| `void flag(node, lkey, conf::Flag)`           | register a flag option (bool)                                             |
+| `void number(node, lkey, conf::Number)`       | register a flag option (int64_t)                                          |
+| `void param(node, lkey, conf::Param)`         | register a flag option (string)                                           |
+| `void params(node, lkey, conf::Params)`       | register a flag option (list of strings)                                  |
+| `void use(node, runner)`                      | register a runner which will be called when node is executed              |
+| `void sub(node, key, description, sub_impl)`  | register a sub node with sub_impl defining its setup                      |
+| `void run(node, argc, argv)`                  | start running the node                                                    |
+| `N create_node()`                             | create a node. returns a proxy to allow compatibility with other methods  |
 
 ### `nil::clix::Options`
 
 This class provides a way to access the parsed options.
 Content will reflect the options added to the `Node`.
 
-| method                                       |
-| -------------------------------------------- |
-| `bool flag(lkey) const`                      |
-| `int number(lkey) const`                     |
-| `std::string param(lkey) const`              |
-| `std::vector<std::string params(lkey) const` |
+| method                                                |
+| ----------------------------------------------------- |
+| `bool flag(option, lkey) const`                       |
+| `int number(option, lkey) const`                      |
+| `std::string param(option, lkey) const`               |
+| `std::vector<std::string> params(option, lkey) const` |
 
 ## Example
 
@@ -37,14 +43,14 @@ Content will reflect the options added to the `Node`.
 void command(nil::clix::Node& node)
 {
     // clang-format off
-    node.flag  ("help",   { .skey ='h', .msg = "show this help"                                        });
-    node.flag  ("spawn",  { .skey ='s', .msg = "spawn"                                                 });
-    node.number("thread", { .skey ='t', .msg = "number of threads"                                     });
-    node.number("job",    { .skey ='j', .msg = "number of jobs"    , .fallback = 1     , .implicit = 0 });
-    node.param ("param",  { .skey ='p', .msg = "default param"     , .fallback = "123"                 });
-    node.params("mparam", { .skey ='m', .msg = "multiple params"                                       });
+    flag  (node, "help",   { .skey ='h', .msg = "show this help"                                        });
+    flag  (node, "spawn",  { .skey ='s', .msg = "spawn"                                                 });
+    number(node, "thread", { .skey ='t', .msg = "number of threads"                                     });
+    number(node, "job",    { .skey ='j', .msg = "number of jobs"    , .fallback = 1     , .implicit = 0 });
+    param (node, "param",  { .skey ='p', .msg = "default param"     , .fallback = "123"                 });
+    params(node, "mparam", { .skey ='m', .msg = "multiple params"                                       });
     // clang-format on
-    node.runner(
+    use(node,
         [](const nil::clix::Options& options)
         {
             if (options.flag("help"))
@@ -53,12 +59,12 @@ void command(nil::clix::Node& node)
                 return 0;
             }
             std::cout                                                     //
-                << "flag   -s: " << options.flag("spawn") << std::endl    //
-                << "number -t: " << options.number("thread") << std::endl //
-                << "number -j: " << options.number("job") << std::endl    //
-                << "param  -p: " << options.param("param") << std::endl   //
+                << "flag   -s: " << flag(options, "spawn") << std::endl    //
+                << "number -t: " << number(options, "thread") << std::endl //
+                << "number -j: " << number(options, "job") << std::endl    //
+                << "param  -p: " << param(options, "param") << std::endl   //
                 << "params -m: " << std::endl;
-            for (const auto& item : options.params("mparam"))
+            for (const auto& item : params(options, "mparam"))
             {
                 std::cout << " -  " << item << std::endl;
             }
@@ -69,27 +75,27 @@ void command(nil::clix::Node& node)
 
 int main(int argc, const char** argv)
 {
-    nil::clix::Node root;
+    auto root = nil::clix::create_node();
     command(root);
-    root.add(
+    use(root,
         "hello",
         "command for 1:hello",
         [](nil::clix::Node& node)
         {
             command(node);
-            node.add("world", "command for 2:world", command);
+            sub(node, "world", "command for 2:world", command);
         }
     );
-    root.add(
+    add(root,
         "another",
         "command for 3:another",
         [](nil::clix::Node& node)
         {
             command(node);
-            node.add("dimension", "command for 4:vector", command);
+            sub(node, "dimension", "command for 4:vector", command);
         }
     );
-    return root.run(argc, argv);
+    return run(root, argc, argv);
 }
 ```
 
