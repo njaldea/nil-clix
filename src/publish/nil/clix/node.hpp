@@ -27,4 +27,4 @@ namespace nil::clix
     int run(const Node& node, int argc, const char* const* argv);
 
     N create_node();
-} // namespace nil::clix
+}

@@ -9,6 +9,10 @@
         }
     ],
     "features": {
+        "sandbox": {
+            "description": "Enable sandbox",
+            "dependencies": []
+        },
         "test": {
             "description": "Enable tests",
             "dependencies": [

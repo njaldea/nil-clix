@@ -12,4 +12,4 @@ namespace nil::clix
     std::int64_t number(const Options& options, const std::string& lkey);
     std::string param(const Options& options, const std::string& lkey);
     std::vector<std::string> params(const Options& options, const std::string& lkey);
-} // namespace nil::clix
+}

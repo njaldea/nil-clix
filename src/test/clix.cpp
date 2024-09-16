@@ -4,6 +4,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
+#include <array>
+
 namespace
 {
     struct MockCall
@@ -59,7 +61,7 @@ namespace
 
 TEST(cli, base)
 {
-    auto args = std::array{"Program"};
+    auto args = std::array<const char*, 1>{"Program"};
     ASSERT_EQ(run(nil::clix::create_node(), args.size(), args.data()), 0);
 }
 
