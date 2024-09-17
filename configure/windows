@@ -5,8 +5,8 @@ if [[ $0 != $BASH_SOURCE ]]; then
     return 1
 fi
 
-export CC=`(which clang.exe)`
-export CXX=`(which clang++.exe)`
+# export CC=`(which clang.exe)`
+# export CXX=`(which clang++.exe)`
 
 SCRIPT_PATH=`(dirname $BASH_SOURCE)`
 REPO_PATH=`(realpath $SCRIPT_PATH/..)`

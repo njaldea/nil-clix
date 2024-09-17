@@ -10,12 +10,7 @@
         },
         "test": {
             "description": "Enable tests",
-            "dependencies": [
-                {
-                    "name": "gtest",
-                    "version>=": "1.13.0"
-                }
-            ]
+            "dependencies": [ "gtest" ]
         }
     }
 }
