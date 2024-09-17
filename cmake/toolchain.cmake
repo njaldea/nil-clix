@@ -37,3 +37,7 @@ elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # add_compile_options("/wd4514") # unreferenced inline function has been removed
     # [TODO] figure out how to ignore 3rd party headers
 endif()
+
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_link_options(-fuse-ld=lld-18)
+endif()
