@@ -1,9 +1,5 @@
 #pragma once
 
-#include "nil/clix/conf/Flag.hpp"
-#include "nil/clix/conf/Number.hpp"
-#include "nil/clix/conf/Param.hpp"
-#include "nil/clix/conf/Params.hpp"
 #include <nil/clix/node.hpp>
 
 #include <boost/program_options/options_description.hpp>
