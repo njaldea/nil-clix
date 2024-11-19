@@ -28,6 +28,7 @@ Content will reflect the options added to the `Node`.
 
 | method                                                |
 | ----------------------------------------------------- |
+| `bool has_value(option, lkey) const`                  |
 | `bool flag(option, lkey) const`                       |
 | `int number(option, lkey) const`                      |
 | `std::string param(option, lkey) const`               |
@@ -64,9 +65,12 @@ void command(nil::clix::Node& node)
                 << "number -j: " << number(options, "job") << std::endl    //
                 << "param  -p: " << param(options, "param") << std::endl   //
                 << "params -m: " << std::endl;
-            for (const auto& item : params(options, "mparam"))
-            {
-                std::cout << " -  " << item << std::endl;
+
+            if (has_value(options, "mparam")) {
+                for (const auto& item : params(options, "mparam"))
+                {
+                    std::cout << " -  " << item << std::endl;
+                }
             }
             return 0;
         }

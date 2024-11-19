@@ -1,8 +1,8 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <string>
-#include <cstdint>
 
 namespace nil::clix::conf
 {
@@ -11,21 +11,21 @@ namespace nil::clix::conf
         /**
          * @brief Short Key - Alias
          */
-        std::optional<char> skey;
+        std::optional<char> skey = std::nullopt;
 
         /**
          * @brief Message to be used during help
          */
-        std::optional<std::string> msg;
+        std::optional<std::string> msg = std::nullopt;
 
         /**
          * @brief Value used when option is not provided
          */
-        std::int64_t fallback = 0;
+        std::optional<std::int64_t> fallback = std::nullopt;
 
         /**
          * @brief Value used when there is no value provided to the option
          */
-        std::int64_t implicit = 1;
+        std::optional<std::int64_t> implicit = std::nullopt;
     };
 } // namespace nil::clix::conf

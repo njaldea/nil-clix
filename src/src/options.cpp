@@ -26,8 +26,18 @@ namespace nil::clix
         const auto opt = conf.skey ? (lkey + ',' + *conf.skey) : lkey;
         auto* value = boost::program_options::value<std::int64_t>();
         value->value_name("value");
-        value->implicit_value(conf.implicit, std::to_string(conf.implicit));
-        value->default_value(conf.fallback, std::to_string(conf.fallback));
+        if (conf.implicit.has_value())
+        {
+            value->implicit_value(conf.implicit.value(), std::to_string(conf.implicit.value()));
+        }
+        if (conf.fallback.has_value())
+        {
+            value->default_value(conf.fallback.value(), std::to_string(conf.fallback.value()));
+        }
+        else
+        {
+            value->required();
+        }
         i(opt.c_str(), value, conf.msg.value_or("").c_str());
     }
 
@@ -61,7 +71,6 @@ namespace nil::clix
         auto* value = boost::program_options::value<std::vector<std::string>>();
         value->value_name("text");
         value->multitoken();
-        value->default_value({}, "");
         i(opt.c_str(), value, conf.msg.value_or("").c_str());
     }
 
@@ -147,6 +156,11 @@ namespace nil::clix
             }
             os << '\n';
         }
+    }
+
+    bool has_value(const Options& options, const std::string& lkey)
+    {
+        return options.vm.count(lkey) > 0;
     }
 
     namespace impl

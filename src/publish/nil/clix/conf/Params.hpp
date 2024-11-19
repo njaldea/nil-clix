@@ -10,11 +10,11 @@ namespace nil::clix::conf
         /**
          * @brief Short Key - Alias
          */
-        std::optional<char> skey;
+        std::optional<char> skey = std::nullopt;
 
         /**
          * @brief Message to be used during help
          */
-        std::optional<std::string> msg;
+        std::optional<std::string> msg = std::nullopt;
     };
 } // namespace nil::clix::conf

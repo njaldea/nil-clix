@@ -51,7 +51,7 @@ namespace
     void apply(nil::clix::Node& node)
     {
         flag(node, "flag", {.skey = 'f', .msg = "flag msg"});
-        number(node, "number", {.skey = 'n', .msg = "number msg"});
+        number(node, "number", {.skey = 'n', .msg = "number msg", .fallback = 0, .implicit = 1});
         param(node, "param", {.skey = 'p', .msg = "param msg", .fallback = "default value"});
         params(node, "mparam", {.skey = 'm', .msg = "mparam msg"});
         use(node,
@@ -74,7 +74,7 @@ TEST(cli, depth_one)
         return !flag(output, "flag")                     //
             && number(output, "number") == 0             //
             && param(output, "param") == "default value" //
-            && params(output, "mparam").empty();
+            && !has_value(output, "mparam");
     };
     EXPECT_CALL(called.mock, Call(testing::Truly(matches)))
         .Times(1)
@@ -123,7 +123,7 @@ TEST(cli, depth_deep)
                 && !flag(output, "flag")                     //
                 && number(output, "number") == 0             //
                 && param(output, "param") == "default value" //
-                && params(output, "mparam").empty();
+                && !has_value(output, "mparam");
         };
     };
     {

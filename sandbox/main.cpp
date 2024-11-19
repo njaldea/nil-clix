@@ -7,12 +7,13 @@
 void command(nil::clix::Node& node)
 {
     // clang-format off
-    flag  (node, "help",   { .skey ='h', .msg = "show this help"                                        });
-    flag  (node, "spawn",  { .skey ='s', .msg = "spawn"                                                 });
-    number(node, "thread", { .skey ='t', .msg = "number of threads"                                     });
-    number(node, "job",    { .skey ='j', .msg = "number of jobs"    , .fallback = 1     , .implicit = 0 });
-    param (node, "param",  { .skey ='p', .msg = "default param"     , .fallback = "123"                 });
-    params(node, "mparam", { .skey ='m', .msg = "multiple params"                                       });
+    flag  (node, "help",            { .skey ='h', .msg = "show this help"                                       });
+    flag  (node, "spawn",           { .skey ='b', .msg = "spawn"                                                });
+    number(node, "fallback_number", { .skey ='n', .msg = "fallback number"  , .fallback = 1     , .implicit = 0 });
+    number(node, "optional_number", { .skey ='m', .msg = "fallback number"                                      });
+    param (node, "fallback_param",  { .skey ='s', .msg = "fallback param"   , .fallback = "fff"                 });
+    param (node, "optional_param",  { .skey ='t', .msg = "optional param"                                       });
+    params(node, "mparam",          { .skey ='z', .msg = "multiple params"                                      });
     // clang-format on
 
     use(node,
@@ -23,15 +24,42 @@ void command(nil::clix::Node& node)
                 help(options, std::cout);
                 return 0;
             }
-            std::cout                                                      //
-                << "flag   -s: " << flag(options, "spawn") << std::endl    //
-                << "number -t: " << number(options, "thread") << std::endl //
-                << "number -j: " << number(options, "job") << std::endl    //
-                << "param  -p: " << param(options, "param") << std::endl   //
-                << "params -m: " << std::endl;
-            for (const auto& item : params(options, "mparam"))
+            std::cout                                                                        //
+                << "flag            -b: " << flag(options, "spawn") << std::endl             //
+                << "fallback_number -n: " << number(options, "fallback_number") << std::endl //
+                << "fallback_param  -s: " << param(options, "fallback_param") << std::endl   //
+                << "params          -z: " << std::endl;
+
+            if (has_value(options, "optional_number"))
             {
-                std::cout << " -  " << item << std::endl;
+                std::cout << "optional_number -m: " << param(options, "optional_number")
+                          << std::endl;
+            }
+            else
+            {
+                std::cout << "optional_number -m: not provided" << std::endl;
+            }
+
+            if (has_value(options, "optional_param"))
+            {
+                std::cout << "optional_param  -t: " << param(options, "optional_param")
+                          << std::endl;
+            }
+            else
+            {
+                std::cout << "optional_param  -t: not provided" << std::endl;
+            }
+
+            if (has_value(options, "mparam"))
+            {
+                for (const auto& item : params(options, "mparam"))
+                {
+                    std::cout << " -  : " << item << std::endl;
+                }
+            }
+            else
+            {
+                std::cout << " -  : no mparam" << std::endl;
             }
             return 0;
         });
