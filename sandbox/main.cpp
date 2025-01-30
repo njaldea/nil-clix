@@ -1,22 +1,76 @@
 
 #include <nil/clix.hpp>
-#include <nil/clix/prebuilt/Help.hpp>
 
 #include <iostream>
 
-void command(nil::clix::Node& node)
+int main(int argc, const char** argv)
 {
-    // clang-format off
-    flag  (node, "help",            { .skey ='h', .msg = "show this help"                                       });
-    flag  (node, "spawn",           { .skey ='b', .msg = "spawn"                                                });
-    number(node, "fallback_number", { .skey ='n', .msg = "fallback number"  , .fallback = 1     , .implicit = 0 });
-    number(node, "optional_number", { .skey ='m', .msg = "fallback number"                                      });
-    param (node, "fallback_param",  { .skey ='s', .msg = "fallback param"   , .fallback = "fff"                 });
-    param (node, "optional_param",  { .skey ='t', .msg = "optional param"                                       });
-    params(node, "mparam",          { .skey ='z', .msg = "multiple params"                                      });
-    // clang-format on
-
-    use(node,
+    auto root = nil::clix::create_node();
+    flag(root, "help", {.skey = 'h', .msg = "show this help"});
+    sub(root,
+        "flags",
+        "command for flags",
+        [](nil::clix::Node& node)
+        {
+            flag(node, "help", {.skey = 'h', .msg = "show this help"});
+            flag(node, "spawn", {.skey = 's', .msg = "spawn"});
+            use(node,
+                [](const nil::clix::Options& options)
+                {
+                    if (flag(options, "help"))
+                    {
+                        help(options, std::cout);
+                        return 0;
+                    }
+                    std::cout << "Flag Node is executing\n" << std::endl;
+                    return 0;
+                });
+        });
+    sub(root,
+        "numbers",
+        "command for numbers",
+        [](nil::clix::Node& node)
+        {
+            flag(node, "help", {.skey = 'h', .msg = "show this help"});
+            number(node, "thread", {.skey = 't', .msg = "number of threads"});
+            number(
+                node,
+                "job",
+                {.skey = 'j', .msg = "number of jobs", .fallback = 1, .implicit = 0}
+            );
+            use(node,
+                [](const nil::clix::Options& options)
+                {
+                    if (flag(options, "help"))
+                    {
+                        help(options, std::cout);
+                        return 0;
+                    }
+                    std::cout << "Numbers Node is executing\n" << std::endl;
+                    return 0;
+                });
+        });
+    sub(root,
+        "params",
+        "command for params",
+        [](nil::clix::Node& node)
+        {
+            flag(node, "help", {.skey = 'h', .msg = "show this help"});
+            param(node, "param", {.skey = 'p', .msg = "default param", .fallback = "123"});
+            params(node, "mparam", {.skey = 'm', .msg = "multiple params"});
+            use(node,
+                [](const nil::clix::Options& options)
+                {
+                    if (flag(options, "help"))
+                    {
+                        help(options, std::cout);
+                        return 0;
+                    }
+                    std::cout << "Params Node is executing\n" << std::endl;
+                    return 0;
+                });
+        });
+    use(root,
         [](const nil::clix::Options& options)
         {
             if (flag(options, "help"))
@@ -24,68 +78,8 @@ void command(nil::clix::Node& node)
                 help(options, std::cout);
                 return 0;
             }
-            std::cout                                                                        //
-                << "flag            -b: " << flag(options, "spawn") << std::endl             //
-                << "fallback_number -n: " << number(options, "fallback_number") << std::endl //
-                << "fallback_param  -s: " << param(options, "fallback_param") << std::endl   //
-                << "params          -z: " << std::endl;
-
-            if (has_value(options, "optional_number"))
-            {
-                std::cout << "optional_number -m: " << param(options, "optional_number")
-                          << std::endl;
-            }
-            else
-            {
-                std::cout << "optional_number -m: not provided" << std::endl;
-            }
-
-            if (has_value(options, "optional_param"))
-            {
-                std::cout << "optional_param  -t: " << param(options, "optional_param")
-                          << std::endl;
-            }
-            else
-            {
-                std::cout << "optional_param  -t: not provided" << std::endl;
-            }
-
-            if (has_value(options, "mparam"))
-            {
-                for (const auto& item : params(options, "mparam"))
-                {
-                    std::cout << " -  : " << item << std::endl;
-                }
-            }
-            else
-            {
-                std::cout << " -  : no mparam" << std::endl;
-            }
+            std::cout << "Root Node is executing\n" << std::endl;
             return 0;
-        });
-}
-
-int main(int argc, const char** argv)
-{
-    using nil::clix::prebuilt::Help;
-
-    auto root = nil::clix::create_node();
-    command(root);
-    sub(root,
-        "hello",
-        "command for 1:hello",
-        [](nil::clix::Node& node)
-        {
-            command(node);
-            sub(node, "world", "command for 2:world", Help(&std::cout));
-        });
-    sub(root,
-        "another",
-        "command for 3:another",
-        [](nil::clix::Node& node)
-        {
-            command(node);
-            sub(node, "dimension", "command for 4:vector", Help(&std::cout));
         });
     return run(root, argc, argv);
 }
