@@ -1,6 +1,7 @@
+#include <nil/clix/prebuilt/Help.hpp>
+
 #include <nil/clix/node.hpp>
 #include <nil/clix/options.hpp>
-#include <nil/clix/prebuilt/Help.hpp>
 
 namespace nil::clix::prebuilt
 {
@@ -9,20 +10,17 @@ namespace nil::clix::prebuilt
     {
     }
 
-    Help::operator std::function<void(Node&)>() const
+    void Help::operator()(Node& node) const
     {
-        return [ostream = this->os](Node& node) { use(node, Help(ostream)); };
+        use(node, *this);
     }
 
-    Help::operator std::function<int(const Options&)>() const
+    int Help::operator()(const Options& options) const
     {
-        return [ostream = this->os](const Options& options)
+        if (os != nullptr)
         {
-            if (ostream != nullptr)
-            {
-                help(options, *ostream);
-            }
-            return 0;
-        };
+            help(options, *os);
+        }
+        return 0;
     }
 }

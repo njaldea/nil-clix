@@ -1,14 +1,16 @@
 #pragma once
 
-#include "../node.hpp"
-#include "../options.hpp"
-
-#include <functional>
 #include <ostream>
+
+namespace nil::clix
+{
+    struct Node;
+    struct Options;
+}
 
 namespace nil::clix::prebuilt
 {
-    class Help
+    struct Help
     {
     public:
         explicit Help(std::ostream* init_os);
@@ -17,11 +19,11 @@ namespace nil::clix::prebuilt
         Help& operator=(const Help&) noexcept = default;
         ~Help() noexcept = default;
 
-        Help(Help&&) noexcept = delete;
-        Help& operator=(Help&&) noexcept = delete;
+        Help(Help&&) noexcept = default;
+        Help& operator=(Help&&) noexcept = default;
 
-        operator std::function<void(Node&)>() const;         // NOLINT
-        operator std::function<int(const Options&)>() const; // NOLINT
+        void operator()(Node&) const;
+        int operator()(const Options&) const;
 
     private:
         std::ostream* os;
