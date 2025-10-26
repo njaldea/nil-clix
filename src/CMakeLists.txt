@@ -1,6 +1,6 @@
 project(clix)
 
-find_package(Boost COMPONENTS program_options REQUIRED)
+find_package(CLI11 CONFIG REQUIRED)
 
 set(
     HEADERS
@@ -24,7 +24,7 @@ set(
 
 add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Boost::program_options)
+target_link_libraries(${PROJECT_NAME} PRIVATE CLI11::CLI11)
 
 target_include_directories(
     ${PROJECT_NAME}

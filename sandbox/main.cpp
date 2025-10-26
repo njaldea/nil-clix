@@ -3,6 +3,7 @@
 
 #include <iostream>
 
+// NOLINTNEXTLINE
 int main(int argc, const char** argv)
 {
     auto root = nil::clix::create_node();
@@ -23,6 +24,10 @@ int main(int argc, const char** argv)
                         return 0;
                     }
                     std::cout << "Flag Node is executing\n" << std::endl;
+                    if (has_value(options, "spawn"))
+                    {
+                        std::cout << "spawn: " << flag(options, "spawn") << std::endl;
+                    }
                     return 0;
                 });
         });
@@ -47,6 +52,14 @@ int main(int argc, const char** argv)
                         return 0;
                     }
                     std::cout << "Numbers Node is executing\n" << std::endl;
+                    if (has_value(options, "thread"))
+                    {
+                        std::cout << "thread: " << number(options, "thread") << std::endl;
+                    }
+                    if (has_value(options, "job"))
+                    {
+                        std::cout << "job: " << number(options, "job") << std::endl;
+                    }
                     return 0;
                 });
         });
@@ -56,7 +69,7 @@ int main(int argc, const char** argv)
         [](nil::clix::Node& node)
         {
             flag(node, "help", {.skey = 'h', .msg = "show this help"});
-            param(node, "param", {.skey = 'p', .msg = "default param", .fallback = "123"});
+            param(node, "param", {.skey = 'p', .msg = "default param", .fallback = "default_text"});
             params(node, "mparam", {.skey = 'm', .msg = "multiple params"});
             use(node,
                 [](const nil::clix::Options& options)
@@ -67,6 +80,17 @@ int main(int argc, const char** argv)
                         return 0;
                     }
                     std::cout << "Params Node is executing\n" << std::endl;
+                    if (has_value(options, "param"))
+                    {
+                        std::cout << "param: " << param(options, "param") << std::endl;
+                    }
+                    if (has_value(options, "mparam"))
+                    {
+                        for (const auto& m : params(options, "mparam"))
+                        {
+                            std::cout << "mparam: " << m << std::endl;
+                        }
+                    }
                     return 0;
                 });
         });
