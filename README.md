@@ -1,15 +1,20 @@
 # nil/clix
 
-This library is only intended to simplify arg parsing and allow nesting of sub commands. Internally uses `boost::program_options`.
+This library is only intended to simplify arg parsing and allow nesting of sub commands. Internally uses ~~`boost::program_options`~~ `CLI11`.
 
 Simplification is done by limiting the touch points to the internal library and providing more concrete option types with very opinionated defaults.
+
+Each command will receive their own runner method which receives the parsed Options.
+
+This makes it simpler as options are scoped and does not need to leak to other subcommands.
 
 ## Objects
 
 ### `nil::clix::Node`
 
 Boost program options does not inherently support nesting of commands.
-This Node is simply a way to chain the commands.
+CLI11 does, but complexity is a bit too much for me.
+This Node is simpler way to chain the commands.
 
 | method                                        | decription                                                                |
 | --------------------------------------------- | ------------------------------------------------------------------------- |
@@ -38,6 +43,13 @@ Content will reflect the options added to the `Node`.
 | `int number(option, lkey) const`                      |
 | `std::string param(option, lkey) const`               |
 | `std::vector<std::string> params(option, lkey) const` |
+
+has_value is mainly usable only for:
+- `number` without fallback
+- `param` without fallback
+
+`flag` has a default of `false`
+`params` has a default of `empty std::vector<std::string>`
 
 ## Example
 

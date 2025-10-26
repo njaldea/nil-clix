@@ -1,0 +1,5 @@
+set(CPACK_PACKAGE_NAME "nil-clix-dev")
+set(CPACK_PACKAGE_CONTACT "njaldea@gmail.com")
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Neil Aldea <njaldea@gmail.com>")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Opinionated argument parser")
+include(CPack)

@@ -2,10 +2,7 @@
 
 #include <nil/clix/node.hpp>
 
-#include <boost/program_options/options_description.hpp>
-#include <boost/program_options/parsers.hpp>
-#include <boost/program_options/positional_options.hpp>
-#include <boost/program_options/variables_map.hpp>
+#include <CLI/CLI.hpp>
 
 #include <functional>
 #include <string>
@@ -36,8 +33,11 @@ namespace nil::clix
 
     struct Options
     {
-        boost::program_options::options_description desc;
-        boost::program_options::variables_map vm;
+        std::unique_ptr<CLI::App> app;
+        std::unordered_map<
+            std::string,
+            std::variant<std::monostate, bool, std::int64_t, std::string, std::vector<std::string>>>
+            options;
         std::vector<std::tuple<std::string, std::string>> sub;
     };
 

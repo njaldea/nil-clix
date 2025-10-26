@@ -1,6 +1,6 @@
 project(clix)
 
-find_package(Boost COMPONENTS program_options REQUIRED)
+find_package(CLI11 CONFIG REQUIRED)
 
 set(
     HEADERS
@@ -22,9 +22,9 @@ set(
         src/prebuilt/Help.cpp
 )
 
-add_library(${PROJECT_NAME} ${SOURCES} ${HEADERS})
+add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE Boost::program_options)
+target_link_libraries(${PROJECT_NAME} PRIVATE $<BUILD_INTERFACE:CLI11::CLI11>)
 
 target_include_directories(
     ${PROJECT_NAME}
