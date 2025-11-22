@@ -26,14 +26,7 @@ add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 
 target_link_libraries(${PROJECT_NAME} PRIVATE $<BUILD_INTERFACE:CLI11::CLI11>)
 
-target_include_directories(
-    ${PROJECT_NAME}
-    PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/publish>
-    $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
-)
-
 add_test_subdirectory()
 
-nil_install_headers()
+nil_install_headers(${PROJECT_NAME} PUBLIC)
 nil_install_targets(${PROJECT_NAME})
