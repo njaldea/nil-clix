@@ -1,105 +1,77 @@
 #include "structs.hpp"
 
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <unordered_map>
-#include <variant>
+#include <iomanip>
 
 namespace nil::clix
 {
-    template <typename T>
-    std::string get_name(const std::string& lkey, const T& conf)
+    void apply(
+        const std::string& lkey,
+        const conf::Flag& conf,
+        boost::program_options::options_description_easy_init& i
+    )
     {
-        return conf.skey.has_value() ? ("-" + (conf.skey.value() + (",--" + lkey))) : ("--" + lkey);
+        const auto opt = conf.skey ? (lkey + ',' + *conf.skey) : lkey;
+        auto* value = boost::program_options::value<bool>();
+        value->zero_tokens();
+        value->default_value(false);
+        i(opt.c_str(), value, conf.msg.value_or("").c_str());
     }
 
-    std::string get_name(const std::string& lkey)
+    void apply(
+        const std::string& lkey,
+        const conf::Number& conf,
+        boost::program_options::options_description_easy_init& i
+    )
     {
-        return "--" + lkey;
-    }
-
-    void apply(const std::string& lkey, const conf::Flag& conf, Options& options)
-    {
-        auto& value = options.options.emplace(lkey, false).first->second;
-        options.app->add_flag(get_name(lkey, conf), get<bool>(value), conf.msg.value_or(""));
-    }
-
-    void apply(const std::string& lkey, const conf::Number& conf, Options& options)
-    {
-        using type = std::optional<std::int64_t>;
-        auto& value = conf.fallback.has_value()
-            ? options.options.emplace(lkey, conf.fallback.value()).first->second
-            : options.options.emplace(lkey, std::monostate{}).first->second;
-
-        std::ostringstream oss;
+        const auto opt = conf.skey ? (lkey + ',' + *conf.skey) : lkey;
+        auto* value = boost::program_options::value<std::int64_t>();
+        value->value_name("value");
         if (conf.implicit.has_value())
         {
-            oss << "[=value(=" << conf.implicit.value() << ")]";
+            value->implicit_value(conf.implicit.value(), std::to_string(conf.implicit.value()));
         }
         if (conf.fallback.has_value())
         {
-            if (conf.implicit.has_value())
-            {
-                oss << ' ';
-            }
-            oss << "(=" << conf.fallback.value() << ')';
-        }
-
-        if (conf.implicit.has_value())
-        {
-            options.app
-                ->add_option_function<type>(
-                    get_name(lkey, conf),
-                    [&value, ival = conf.implicit.value()](const type& new_value)
-                    { value = new_value.has_value() ? new_value.value() : ival; },
-                    conf.msg.value_or("")
-                )
-                ->expected(0, 1)
-                ->type_name(oss.str());
+            value->default_value(conf.fallback.value(), std::to_string(conf.fallback.value()));
         }
         else
         {
-            options.app
-                ->add_option_function<type::value_type>(
-                    get_name(lkey, conf),
-                    [&value](const type::value_type& new_value) { value = new_value; },
-                    conf.msg.value_or("")
-                )
-                ->expected(1)
-                ->type_name(oss.str());
+            value->required();
         }
+        i(opt.c_str(), value, conf.msg.value_or("").c_str());
     }
 
-    void apply(const std::string& lkey, const conf::Param& conf, Options& options)
+    void apply(
+        const std::string& lkey,
+        const conf::Param& conf,
+        boost::program_options::options_description_easy_init& i
+    )
     {
-        using type = std::string;
-        auto& value = conf.fallback.has_value()
-            ? options.options.emplace(lkey, conf.fallback.value()).first->second
-            : options.options.emplace(lkey, std::monostate{}).first->second;
-
-        std::ostringstream oss;
-        oss << "text";
+        const auto opt = conf.skey ? (lkey + ',' + *conf.skey) : lkey;
+        auto* value = boost::program_options::value<std::string>();
+        value->value_name("text");
         if (conf.fallback.has_value())
         {
-            oss << "(=" << conf.fallback.value() << ')';
+            value->default_value(conf.fallback.value(), "\"" + conf.fallback.value() + "\"");
         }
-        options.app->add_option(get_name(lkey, conf), get<type>(value), conf.msg.value_or(""))
-            ->type_size(1)
-            ->type_name(oss.str());
+        else
+        {
+            value->required();
+        }
+        i(opt.c_str(), value, conf.msg.value_or("").c_str());
     }
 
-    void apply(const std::string& lkey, const conf::Params& conf, Options& options)
+    void apply(
+        const std::string& lkey,
+        const conf::Params& conf,
+        boost::program_options::options_description_easy_init& i
+    )
     {
-        using type = std::vector<std::string>;
-        auto& value = options.options.emplace(lkey, std::monostate{}).first->second;
-        options.app
-            ->add_option_function<type>(
-                get_name(lkey, conf),
-                [&value](const type& new_value) { value = new_value; },
-                conf.msg.value_or("")
-            )
-            ->type_name("text");
+        const auto opt = conf.skey ? (lkey + ',' + *conf.skey) : lkey;
+        auto* value = boost::program_options::value<std::vector<std::string>>();
+        value->value_name("text");
+        value->multitoken();
+        i(opt.c_str(), value, conf.msg.value_or("").c_str());
     }
 
     Options parse(
@@ -110,33 +82,32 @@ namespace nil::clix
     )
     {
         auto retval = Options{
-            std::make_unique<CLI::App>(),
-            std::unordered_map<
-                std::string,
-                std::variant<
-                    std::monostate,
-                    bool,
-                    std::int64_t,
-                    std::string,
-                    std::vector<std::string>>>{},
+            boost::program_options::options_description{"OPTIONS"},
+            boost::program_options::variables_map{},
             std::vector<std::tuple<std::string, std::string>>{}
         };
-        retval.app->set_help_flag();     // removes -h/--help
-        retval.app->set_help_all_flag(); // removes --help-all too (optional)
-        retval.app->get_formatter()->column_width(50);
-
+        auto options = retval.desc.add_options();
         for (const auto& o : opts)
         {
-            std::visit([&o, &retval](const auto& v) { apply(o.lkey, v, retval); }, o.option);
+            std::visit([&o, &options](const auto& v) { apply(o.lkey, v, options); }, o.option);
         }
 
-        for (const auto& node : subs)
+        try
         {
-            retval.app->add_subcommand(node.key, node.description);
-            retval.sub.emplace_back(node.key, node.description);
-        }
+            boost::program_options::positional_options_description positional;
+            positional.add("__nil_cli_pos_args", 0);
 
-        retval.app->parse(argc, argv);
+            boost::program_options::command_line_parser parser(argc, argv);
+            parser                    //
+                .options(retval.desc) //
+                .positional(positional);
+
+            boost::program_options::store(parser.run(), retval.vm);
+        }
+        catch (const std::exception& ex)
+        {
+            throw std::invalid_argument(std::string("[nil][cli] ") + ex.what());
+        }
 
         for (const auto& node : subs)
         {
@@ -148,20 +119,48 @@ namespace nil::clix
 
     void help(const Options& options, std::ostream& os)
     {
-        os << options.app->help();
+        if (options.desc.options().empty() && options.sub.empty())
+        {
+            os << "No option available\n";
+            return;
+        }
+
+        if (!options.desc.options().empty())
+        {
+            options.desc.print(os);
+            os << '\n';
+        }
+
+        if (!options.sub.empty())
+        {
+            os << "SUBCOMMANDS:\n";
+            const auto width = options.desc.get_option_column_width();
+            for (const auto& [key, subdesc] : options.sub)
+            {
+                os << "  "                      //
+                   << std::left                 //
+                   << std::setw(int(width - 2)) //
+                   << key;
+                // iterate per character.
+                // add padding when newline is found.
+                // expensive but idc since this is not a hot path.
+                for (const auto& c : subdesc)
+                {
+                    if (c == '\n')
+                    {
+                        os << std::setw(int(width));
+                    }
+                    os << c;
+                }
+                os << '\n';
+            }
+            os << '\n';
+        }
     }
 
-    bool has_value(const Options& options, const std::string& k) noexcept
+    bool has_value(const Options& options, const std::string& lkey)
     {
-        if (const auto it = options.options.find(k); it != options.options.end())
-        {
-            return std::visit(
-                [&]<typename variant_t>(const variant_t& /* value */) -> bool
-                { return !std::is_same_v<variant_t, std::monostate>; },
-                it->second
-            );
-        }
-        return false;
+        return options.vm.count(lkey) > 0;
     }
 
     namespace impl
@@ -169,29 +168,14 @@ namespace nil::clix
         template <typename T>
         auto access(const Options& options, const std::string& k)
         {
-            if (const auto it = options.options.find(k); it != options.options.end())
+            try
             {
-                return std::get<T>(std::visit(
-                    [&, k]<typename variant_t>(const variant_t& value) -> std::variant<
-                                                                           std::monostate,
-                                                                           bool,
-                                                                           std::int64_t,
-                                                                           std::string,
-                                                                           std::vector<std::string>>
-                    {
-                        if constexpr (std::is_same_v<variant_t, T>)
-                        {
-                            return value;
-                        }
-                        else
-                        {
-                            throw std::out_of_range(k); // NOLINT
-                        }
-                    },
-                    it->second
-                ));
+                return options.vm[k].as<T>();
             }
-            throw std::out_of_range("[nil][cli]: option \"" + k + "\" is unknown");
+            catch (const std::exception&)
+            {
+                throw std::out_of_range("[nil][cli]: option \"" + k + "\" is unknown");
+            }
         }
     }
 

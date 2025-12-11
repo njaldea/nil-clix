@@ -8,19 +8,20 @@
 
 namespace
 {
-    auto help(const std::string& p, const std::string& c)
+    auto help(const std::string& c)
     {
-        return "Usage: " + p + " [OPTIONS] [SUBCOMMAND]"
-               "\n"
-               "\nOptions:"
-               "\n  -f,--flag                                       flag msg"
-               "\n  -n,--number [=value(=1)] (=0)                   number msg"
-               "\n  -p,--param text(=default value)                 param msg"
-               "\n  -m,--mparam text ...                            mparam msg"
-               "\n"
-               "\nSubcommands:"
-               "\n  sub"
-            + c + "                                            description of sub" + c + "\n";
+        return 
+            "OPTIONS:"
+            "\n  -f [ --flag ]                         flag msg"
+            "\n  -n [ --number ] [=value(=1)] (=0)     number msg"
+            "\n  -p [ --param ] text (=\"default value\")"
+            "\n                                        param msg"
+            "\n  -m [ --mparam ] text                  mparam msg"
+            "\n"
+            "\nSUBCOMMANDS:"
+            "\n  sub" + c + "                                  description of sub" + c +
+            "\n"
+            "\n";
     }
 
     void apply(nil::clix::Node& node, testing::MockFunction<int(const nil::clix::Options&)>& mock)
@@ -95,7 +96,7 @@ TEST(cli, depth_deep)
         {
             std::ostringstream oss;
             help(output, oss);
-            return oss.str() == help(c, h)                   //
+            return oss.str() == help(h)                      //
                 && !flag(output, "flag")                     //
                 && number(output, "number") == 0             //
                 && param(output, "param") == "default value" //

@@ -1,6 +1,6 @@
 project(clix)
 
-find_package(CLI11 CONFIG REQUIRED)
+find_package(Boost COMPONENTS program_options REQUIRED)
 
 set(
     HEADERS
@@ -24,7 +24,7 @@ set(
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 
-target_link_libraries(${PROJECT_NAME} PRIVATE $<BUILD_INTERFACE:CLI11::CLI11>)
+target_link_libraries(${PROJECT_NAME} PRIVATE $<BUILD_INTERFACE:Boost::program_options>)
 
 add_test_subdirectory()
 

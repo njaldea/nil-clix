@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.27.1)
 
-project(nil-clix VERSION 1.0.2 LANGUAGES CXX)
+project(
+    nil-clix
+    VERSION 1.0.3
+    LANGUAGES CXX
+    DESCRIPTION "Opinionated Argument Parser"
+)
 
 include(cmake/package.cmake)
 include(cmake/toolchain.cmake)
