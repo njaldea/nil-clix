@@ -4,5 +4,14 @@
         "kind": "git",
         "repository": "https://github.com/Microsoft/vcpkg",
         "baseline": "74e6536215718009aae747d86d84b78376bf9e09"
-    }
+    },
+    "registries": [
+        {
+            "kind": "git",
+            "repository": "https://github.com/njaldea/nil-vcpkg-ports",
+            "baseline": "270ecf34dc4f9df17808022be279efe67b50d284",
+            "reference": "v0.0.3",
+            "packages": ["nil-cmake"]
+        }
+    ]
 }

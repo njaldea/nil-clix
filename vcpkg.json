@@ -2,7 +2,7 @@
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
     "description": "Simplified argument parsing (from boost::program_options)",
     "name": "nil-clix",
-    "dependencies": [ "boost-program-options" ],
+    "dependencies": [ "boost-program-options", "nil-cmake" ],
     "features": {
         "sandbox": {
             "description": "Enable sandbox",
