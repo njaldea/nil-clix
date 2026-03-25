@@ -69,7 +69,7 @@ namespace nil::clix
     {
         const auto opt = conf.skey ? (lkey + ',' + *conf.skey) : lkey;
         auto* value = boost::program_options::value<std::vector<std::string>>();
-        value->value_name("text");
+        value->value_name("texts");
         value->multitoken();
         i(opt.c_str(), value, conf.msg.value_or("").c_str());
     }
@@ -165,17 +165,34 @@ namespace nil::clix
 
     namespace impl
     {
+        bool known(const Options& options, const std::string& key)
+        {
+            return options.desc.find_nothrow(key, false) != nullptr;
+        }
+
         template <typename T>
         auto access(const Options& options, const std::string& k)
         {
-            try
+            if (const auto it = options.vm.find(k); it != std::end(options.vm))
             {
-                return options.vm[k].as<T>();
+                try
+                {
+                    return it->second.as<T>();
+                }
+                catch (const std::exception& ex)
+                {
+                    throw std::invalid_argument(
+                        "[nil][cli]: option \"" + k + "\" cannot be accessed: " + ex.what()
+                    );
+                }
             }
-            catch (const std::exception&)
+
+            if (known(options, k))
             {
-                throw std::out_of_range("[nil][cli]: option \"" + k + "\" is unknown");
+                throw std::invalid_argument("[nil][cli]: option \"" + k + "\" is missing");
             }
+
+            throw std::out_of_range("[nil][cli]: option \"" + k + "\" is unknown");
         }
     }
 

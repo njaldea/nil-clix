@@ -69,7 +69,7 @@ int main(int argc, const char** argv)
         [](nil::clix::Node& node)
         {
             flag(node, "help", {.skey = 'h', .msg = "show this help"});
-            param(node, "param", {.skey = 'p', .msg = "default param", .fallback = "default_text"});
+            param(node, "param", {.skey = 'p', .msg = "default param"});
             params(node, "mparam", {.skey = 'm', .msg = "multiple params"});
             use(node,
                 [](const nil::clix::Options& options)

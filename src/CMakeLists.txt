@@ -28,5 +28,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE $<BUILD_INTERFACE:Boost::program_o
 
 add_test_subdirectory()
 
+install(PROGRAMS nil-clix-fzf DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 nil_install_headers(${PROJECT_NAME} PUBLIC)
 nil_install_targets(${PROJECT_NAME})

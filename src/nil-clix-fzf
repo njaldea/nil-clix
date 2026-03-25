@@ -1,0 +1,591 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Interactive nil/clix command runner backed by fzf.
+#
+# Usage:
+#   nil-clix-fzf <binary> [initial args...]
+#
+# Example:
+#   nil-clix-fzf ./bin/sandbox
+#
+# The script discovers options and subcommands from "<binary> [sub...] --help",
+# allows selecting them with fzf, and executes the final command.
+
+if [[ -z "${BASH_VERSION:-}" ]]; then
+    echo "error: nil-clix-fzf requires bash" >&2
+    exit 1
+fi
+
+if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+    echo "error: nil-clix-fzf must be executed, not sourced" >&2
+    return 1
+fi
+
+declare -a _nil_clix_used_options=()
+declare -a _nil_clix_cmd=()
+declare -a _nil_clix_text_arg_flags=()
+declare -a _nil_clix_undo_steps=()
+declare -a _nil_clix_subcmds=()
+declare _nil_clix_last_token='[EXEC]'
+declare _nil_clix_help_output=''
+declare _nil_clix_input_header=''
+
+_usage() {
+    cat <<'EOF'
+Usage: fzf-clix <binary> [initial args...]
+
+Interactively build a nil/clix command with fzf and execute it.
+
+Controls inside picker:
+  - pick an item: add argument
+  - [EXEC]: execute command
+  - [BACK]: undo last step
+  - [QUIT]: exit without running
+EOF
+}
+
+_cmd_prompt() {
+    printf '$'
+    local index
+    local escaped_arg
+    for (( index=0; index<${#_nil_clix_cmd[@]}; index++ )); do
+        if [[ "${_nil_clix_text_arg_flags[$index]:-0}" == "1" ]]; then
+            escaped_arg="${_nil_clix_cmd[$index]//\\/\\\\}"
+            escaped_arg="${escaped_arg//\"/\\\"}"
+            printf ' "%s"' "$escaped_arg"
+        else
+            printf ' %q' "${_nil_clix_cmd[$index]}"
+        fi
+    done
+    printf ' > '
+}
+
+_candidate_position() {
+    local candidates="$1"
+    local token="$2"
+    local line_number=0
+    local entry
+
+    while IFS= read -r entry; do
+        line_number=$((line_number + 1))
+        if [[ "${entry#*$'\t'}" == "$token" ]]; then
+            printf '%s' "$line_number"
+            return 0
+        fi
+    done <<< "$candidates"
+
+    return 1
+}
+
+_die() {
+    echo "error: $1" >&2
+    exit 1
+}
+
+_nil_clix_option_candidates() {
+    awk '
+        /^OPTIONS:/ { in_opts=1; next }
+        /^[A-Z][A-Z]*:/ { in_opts=0 }
+        in_opts && /^[[:space:]]+-/ { print }
+    ' <<< "$1" \
+    | awk '
+        function trim(value) {
+            sub(/^[[:space:]]+/, "", value)
+            sub(/[[:space:]]+$/, "", value)
+            return value
+        }
+
+        function parse_option_line(line,      label_col, shortopt, remainder, extra, desc, chunk, spec_end) {
+            label_col = ""
+            shortopt = ""
+            longopt = ""
+            remainder = ""
+            extra = ""
+            desc = ""
+
+            if (match(line, /--[A-Za-z][A-Za-z0-9_-]+/)) {
+                longopt = substr(line, RSTART, RLENGTH)
+            }
+            if (longopt != "") {
+                label_col = longopt
+            }
+            if (match(line, /(^|[[:space:]])-[A-Za-z]([[:space:]]|$)/)) {
+                shortopt = trim(substr(line, RSTART, RLENGTH))
+            }
+
+            remainder = line
+            spec_end = 0
+            if (match(line, /\[[[:space:]]+--[A-Za-z][A-Za-z0-9_-]+[[:space:]]+\]/)) {
+                spec_end = RSTART + RLENGTH - 1
+            }
+            if (spec_end > 0) {
+                remainder = substr(line, spec_end + 1)
+            }
+            remainder = trim(remainder)
+
+            while (match(remainder, /^(value|text|texts|\[=[^]]+\]|\(=[^)]+\))([[:space:]]+|$)/)) {
+                chunk = trim(substr(remainder, RSTART, RLENGTH))
+                if (extra == "") {
+                    extra = chunk
+                } else {
+                    extra = extra " " chunk
+                }
+                remainder = trim(substr(remainder, RLENGTH + 1))
+            }
+
+            desc = remainder
+
+            printf "%s\topt\t%s\t%s\t%s\t%s\n", longopt, label_col, shortopt, extra, desc
+        }
+
+        {
+            parse_option_line($0)
+        }
+    '
+}
+
+_nil_clix_option_is_repeatable() {
+    local extra="$1"
+
+    [[ "$extra" == "texts" ]]
+}
+
+_nil_clix_subcommand_candidates() {
+    awk '
+        /^SUBCOMMANDS:/ { f=1; next }
+        /^[[:space:]]*$/ { f=0 }
+        /^[A-Z][A-Z]*:/ { f=0 }
+        f && /^  [a-zA-Z]/ {
+            desc = substr($0, index($0, $2))
+            printf "%s\tsub\t%s\t\t\t%s\n", $1, $1, desc
+        }
+    ' <<< "$1"
+}
+
+_nil_clix_format_candidates() {
+    awk -F '\t' '
+        function meta_label(token_value,      raw_value) {
+            raw_value = token_value
+            sub(/^\[/, "", raw_value)
+            sub(/\]$/, "", raw_value)
+            return raw_value
+        }
+
+        {
+            token[NR] = $1
+            kind[NR] = $2
+            col1[NR] = $3
+            col2[NR] = $4
+            col3[NR] = $5
+            col4[NR] = $6
+
+            if (kind[NR] == "meta" && col1[NR] == "") {
+                col1[NR] = meta_label(token[NR])
+            }
+
+            if (length(col1[NR]) > width1) {
+                width1 = length(col1[NR])
+            }
+            if (length(col2[NR]) > width2) {
+                width2 = length(col2[NR])
+            }
+            if (length(col3[NR]) > width3) {
+                width3 = length(col3[NR])
+            }
+        }
+
+        END {
+            for (row_index = 1; row_index <= NR; row_index++) {
+                printf "[ %-*s ]  %-*s  %-*s  %s\t%s\n",
+                    width1, col1[row_index],
+                    width2, col2[row_index],
+                    width3, col3[row_index],
+                    col4[row_index],
+                    token[row_index]
+            }
+        }
+    '
+}
+
+_nil_clix_option_line() {
+    local help="$1"
+    local opt="${2#-}"; opt="${opt#-}"
+    awk '/^OPTIONS:/{f=1;next} /^[A-Z][A-Z]*:/{f=0} f && /^[[:space:]]+-/{print}' <<< "$help" \
+    | grep -E "(--${opt}[^a-zA-Z0-9_-]|-[A-Za-z][[:space:]]\[.*--${opt})" \
+    | head -1 || true
+}
+
+_nil_clix_option_value_kind() {
+    local help="$1"
+    local token="$2"
+    local line
+    line=$(_nil_clix_option_line "$help" "$token")
+    [[ -z "$line" ]] && { echo none; return; }
+
+    if [[ "$line" =~ \][[:space:]]+\[=text\(= ]]; then
+        echo optional-text
+        return
+    fi
+    if [[ "$line" =~ \][[:space:]]+\[=value\(= ]]; then
+        echo optional-value
+        return
+    fi
+    if [[ "$line" =~ \][[:space:]]+text[[:space:]] ]]; then
+        echo required-text
+        return
+    fi
+    if [[ "$line" =~ \][[:space:]]+texts[[:space:]] ]]; then
+        echo required-texts
+        return
+    fi
+    if [[ "$line" =~ \][[:space:]]+value[[:space:]] ]]; then
+        echo required-value
+        return
+    fi
+    echo none
+}
+
+_nil_clix_option_implicit_value() {
+    local help="$1"
+    local token="$2"
+    local line
+
+    line=$(_nil_clix_option_line "$help" "$token")
+    [[ -z "$line" ]] && return 0
+
+    printf '%s' "$line" | sed -n 's/.*\[=[^]]*(=\([^)]*\))\].*/\1/p'
+}
+
+_nil_clix_option_is_used() {
+    local token="$1"
+    local used_token
+
+    for used_token in "${_nil_clix_used_options[@]}"; do
+        if [[ "$used_token" == "$token" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+_nil_clix_refresh_used_options() {
+    local help_output="$1"
+    shift
+
+    _nil_clix_used_options=()
+
+    local arg
+    local value_kind
+    for arg in "$@"; do
+        [[ "$arg" == -* ]] || continue
+
+        value_kind=$(_nil_clix_option_value_kind "$help_output" "$arg")
+        if [[ "$value_kind" == "required-texts" ]]; then
+            continue
+        fi
+
+        if ! _nil_clix_option_is_used "$arg"; then
+            _nil_clix_used_options+=("$arg")
+        fi
+    done
+}
+
+_nil_clix_visible_option_candidates() {
+    local help_output="$1"
+    local token
+    local kind
+    local label
+    local shortopt
+    local extra
+    local desc
+
+    while IFS=$'\t' read -r token kind label shortopt extra desc; do
+        [[ -z "$token" ]] && continue
+
+        if _nil_clix_option_is_used "$token"; then
+            if ! _nil_clix_option_is_repeatable "$extra"; then
+                continue
+            fi
+        fi
+
+        printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+            "$token" "$kind" "$label" "$shortopt" "$extra" "$desc"
+    done < <(_nil_clix_option_candidates "$help_output")
+}
+
+_nil_clix_requires_value() {
+    local value_kind="$1"
+    [[ "$value_kind" == required-* || "$value_kind" == optional-* ]]
+}
+
+_nil_clix_value_is_optional() {
+    local value_kind="$1"
+    [[ "$value_kind" == optional-* ]]
+}
+
+_nil_clix_value_is_text() {
+    local value_kind="$1"
+    [[ "$value_kind" == *-text || "$value_kind" == *-texts ]]
+}
+
+_nil_clix_value_is_number() {
+    local value_kind="$1"
+    [[ "$value_kind" == *-value ]]
+}
+
+_nil_clix_is_integer() {
+    local value="$1"
+    [[ "$value" =~ ^-?[0-9]+$ ]]
+}
+
+_nil_clix_read_option_value() {
+    local token="$1"
+    local value_kind="$2"
+    local allow_empty='false'
+    local prompt_suffix=''
+    local opt_value
+    local implicit_value
+
+    if _nil_clix_value_is_optional "$value_kind"; then
+        allow_empty='true'
+        implicit_value=$(_nil_clix_option_implicit_value "$_nil_clix_help_output" "$token")
+        if [[ -n "$implicit_value" ]]; then
+            prompt_suffix=" (empty = ${implicit_value})"
+        else
+            prompt_suffix=' (empty = implicit)'
+        fi
+    fi
+
+    while true; do
+        opt_value=$(_read_free_arg "${token}>${prompt_suffix} " "$allow_empty")
+
+        if [[ -z "$opt_value" ]]; then
+            _nil_clix_input_header=''
+            printf '%s' "$opt_value"
+            return 0
+        fi
+
+        if ! _nil_clix_value_is_number "$value_kind" || _nil_clix_is_integer "$opt_value"; then
+            _nil_clix_input_header=''
+            printf '%s' "$opt_value"
+            return 0
+        fi
+
+        _nil_clix_input_header="error: ${token} expects an integer value"
+    done
+}
+
+_build_subcmd_chain() {
+    _nil_clix_subcmds=()
+    local i
+    for (( i=1; i<${#_nil_clix_cmd[@]}; i++ )); do
+        [[ "${_nil_clix_cmd[$i]}" == -* ]] && break
+        _nil_clix_subcmds+=("${_nil_clix_cmd[$i]}")
+    done
+}
+
+_read_free_arg() {
+    local prompt="$1"
+    local allow_empty="${2:-false}"
+    local value
+    local -a fzf_args=(
+        --print-query
+        --prompt "$prompt"
+        --height=~30%
+        --layout=reverse
+    )
+
+    if [[ -n "$_nil_clix_input_header" ]]; then
+        fzf_args+=(--header "$_nil_clix_input_header")
+    fi
+
+    value=$(printf '' | fzf "${fzf_args[@]}" | head -1)
+    if [[ "$allow_empty" == "true" ]]; then
+        printf '%s' "$value"
+        return 0
+    fi
+    [[ -n "$value" ]] && printf '%s' "$value"
+}
+
+_pop_cmd_args() {
+    local count="$1"
+    local index
+    for (( index=0; index<count; index++ )); do
+        if [[ ${#_nil_clix_cmd[@]} -le 1 ]]; then
+            break
+        fi
+        unset '_nil_clix_cmd[${#_nil_clix_cmd[@]}-1]'
+        _nil_clix_cmd=("${_nil_clix_cmd[@]}")
+        unset '_nil_clix_text_arg_flags[${#_nil_clix_text_arg_flags[@]}-1]'
+        _nil_clix_text_arg_flags=("${_nil_clix_text_arg_flags[@]}")
+    done
+}
+
+_init_text_flags() {
+    local index
+    _nil_clix_text_arg_flags=()
+    for (( index=0; index<${#_nil_clix_cmd[@]}; index++ )); do
+        _nil_clix_text_arg_flags+=(0)
+    done
+}
+
+_nil_clix_has_selected_option() {
+    local arg
+
+    for arg in "$@"; do
+        if [[ "$arg" == -* ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+_build_candidates() {
+    local has_selected_option="$1"
+
+    {
+        printf '[EXEC]\tmeta\t\t\t\tExecute current command\n'
+        if [[ ${#_nil_clix_undo_steps[@]} -gt 0 ]]; then
+            printf '[BACK]\tmeta\t\t\t\tUndo last step\n'
+        fi
+        printf '[QUIT]\tmeta\t\t\t\tExit without running\n'
+        _nil_clix_visible_option_candidates "$_nil_clix_help_output"
+        if [[ "$has_selected_option" != "true" ]]; then
+            _nil_clix_subcommand_candidates "$_nil_clix_help_output"
+        fi
+    } | _nil_clix_format_candidates
+}
+
+_select_candidate() {
+    local candidates="$1"
+    local prompt="$2"
+    local last_token="$3"
+    local start_position=''
+    local -a fzf_args
+
+    start_position=$(_candidate_position "$candidates" "$last_token" || true)
+
+    fzf_args=(
+        --delimiter=$'\t'
+        --with-nth=1
+        --height=~45%
+        --layout=reverse
+        --border
+        --prompt="$prompt"
+        --info=inline
+    )
+    if [[ -n "$start_position" ]]; then
+        fzf_args+=(--bind "start:pos($start_position)")
+    fi
+
+    echo "$candidates" | fzf "${fzf_args[@]}"
+}
+
+main() {
+    if [[ $# -lt 1 ]]; then
+        _usage
+        exit 1
+    fi
+
+    if ! command -v fzf >/dev/null 2>&1; then
+        _die "fzf is required"
+    fi
+
+    _nil_clix_cmd=("$@")
+    _nil_clix_text_arg_flags=()
+    _nil_clix_undo_steps=()
+    _nil_clix_last_token='[EXEC]'
+    if [[ ! -x "${_nil_clix_cmd[0]}" ]] && ! command -v "${_nil_clix_cmd[0]}" >/dev/null 2>&1; then
+        _die "binary not found: ${_nil_clix_cmd[0]}"
+    fi
+
+    if [[ ${#_nil_clix_cmd[@]} -gt 1 ]]; then
+        local initial_index
+        for (( initial_index=1; initial_index<${#_nil_clix_cmd[@]}; initial_index++ )); do
+            _nil_clix_undo_steps+=(1)
+        done
+    fi
+    _init_text_flags
+
+    while true; do
+        _build_subcmd_chain
+
+        _nil_clix_help_output=$("${_nil_clix_cmd[0]}" "${_nil_clix_subcmds[@]}" --help 2>/dev/null || true)
+        if [[ -z "$_nil_clix_help_output" ]]; then
+            _die "unable to resolve help for context: ${_nil_clix_subcmds[*]}"
+        fi
+
+        _nil_clix_refresh_used_options "$_nil_clix_help_output" "${_nil_clix_cmd[@]:1}"
+
+        local has_selected_option='false'
+        if _nil_clix_has_selected_option "${_nil_clix_cmd[@]:1}"; then
+            has_selected_option='true'
+        fi
+
+        local candidates
+        candidates=$(_build_candidates "$has_selected_option")
+
+        local selected
+        selected=$(_select_candidate "$candidates" "$(_cmd_prompt)" "$_nil_clix_last_token")
+
+        [[ -z "$selected" ]] && continue
+
+        local token="${selected#*$'\t'}"
+
+        case "$token" in
+            '[EXEC]')
+                echo "exec -- ${_nil_clix_cmd[@]}"
+                exec "${_nil_clix_cmd[@]}"
+                ;;
+            '[BACK]')
+                _nil_clix_last_token='[BACK]'
+                if [[ ${#_nil_clix_undo_steps[@]} -gt 0 ]]; then
+                    local undo_count="${_nil_clix_undo_steps[${#_nil_clix_undo_steps[@]}-1]}"
+                    unset '_nil_clix_undo_steps[${#_nil_clix_undo_steps[@]}-1]'
+                    _nil_clix_undo_steps=("${_nil_clix_undo_steps[@]}")
+                    _pop_cmd_args "$undo_count"
+                fi
+                ;;
+            '[QUIT]')
+                exit 0
+                ;;
+            *)
+                _nil_clix_cmd+=("$token")
+                _nil_clix_text_arg_flags+=(0)
+                local added_count=1
+                if [[ "$token" == -* ]]; then
+                    _nil_clix_last_token="$token"
+                    local value_kind
+                    value_kind=$(_nil_clix_option_value_kind "$_nil_clix_help_output" "$token")
+
+                    if _nil_clix_requires_value "$value_kind"; then
+                        local opt_value
+                        opt_value=$(_nil_clix_read_option_value "$token" "$value_kind")
+                        if [[ -n "$opt_value" ]]; then
+                            _nil_clix_cmd+=("$opt_value")
+                            if _nil_clix_value_is_text "$value_kind"; then
+                                _nil_clix_text_arg_flags+=(1)
+                            else
+                                _nil_clix_text_arg_flags+=(0)
+                            fi
+                            added_count=2
+                        elif ! _nil_clix_value_is_optional "$value_kind"; then
+                            _pop_cmd_args 1
+                            added_count=0
+                        fi
+                    fi
+                else
+                    _nil_clix_last_token=''
+                fi
+                if [[ "$added_count" -gt 0 ]]; then
+                    _nil_clix_undo_steps+=("$added_count")
+                fi
+                ;;
+        esac
+    done
+}
+
+main "$@"

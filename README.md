@@ -11,7 +11,7 @@ Simplification is done by limiting the touch points to the internal library and 
 Boost program options does not inherently support nesting of commands.
 This Node is simply a way to chain the commands.
 
-| method                                        | decription                                                                |
+| method                                        | description                                                               |
 | --------------------------------------------- | ------------------------------------------------------------------------- |
 | `void flag(node, lkey, conf::Flag)`           | register a flag option (bool)                                             |
 | `void number(node, lkey, conf::Number)`       | register a flag option (int64_t)                                          |
@@ -130,7 +130,7 @@ int main(int argc, const char** argv)
 
 ### Preview (Root)
 ```
-terminal$ executable -h
+terminal$ executable
 Root Node is executing
 
 terminal$ executable -h
@@ -147,7 +147,7 @@ SUBCOMMANDS:
 ### Preview (flags subcommand)
 
 ```
-terminal$ executable flags -h
+terminal$ executable flags
 Flag Node is executing
 
 terminal$ executable flags -h
@@ -181,6 +181,81 @@ terminal$ executable params -h
 OPTIONS:
   -h [ --help ]                show this help
   -p [ --param ] text (="123") default param
-  -m [ --mparam ] text         multiple params
+  -m [ --mparam ] texts        multiple params
 
+```
+
+## Interactive Fzf Runner
+
+The repository includes an interactive helper script for `nil/clix`-based applications.
+
+- source file: `src/nil-clix-fzf`
+- executable name: `nil-clix-fzf`
+
+The runner discovers commands, subcommands, and options dynamically by invoking:
+
+```sh
+<binary> [subcommands...] --help
+```
+
+and presenting the results through `fzf`.
+
+### Requirements
+
+`fzf` must be installed and available in `PATH`.
+
+### Usage
+
+```sh
+nil-clix-fzf <binary> [initial args...]
+```
+
+Example:
+
+```sh
+nil-clix-fzf ./bin/sandbox
+```
+
+### Behavior
+
+The picker shows:
+
+- commands: `[ EXEC ]`, `[ BACK ]`, `[ QUIT ]`
+- subcommands from the current help output
+- options from the current help output
+
+The current command line is shown in the `fzf` prompt and is updated after each selection.
+
+Option values are inferred from the generated help text:
+
+- `] value` and `] text` are treated as required values
+- `] texts` is treated as a repeatable text-valued option
+- `] [=value(=...)]` is treated as an optional value with an implicit fallback when left empty
+
+Text-valued arguments are displayed quoted in the prompt preview.
+
+Selection state is preserved for `[BACK]` and option entries. Subcommand selections reset the highlighted row on the next screen.
+
+### Command Order
+
+Subcommands are intentionally resolved first. A subcommand must appear before that subcommand's options:
+
+```sh
+executable numbers --thread 4
+```
+
+not:
+
+```sh
+executable --thread 4 numbers
+```
+
+Options placed before the subcommand are parsed against the current node, so they are not forwarded to child commands.
+
+### Run
+
+Run the script directly from the source tree:
+
+```sh
+./src/nil-clix-fzf ./.build/bin/sandbox
 ```
