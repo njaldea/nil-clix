@@ -1,6 +1,7 @@
 #include "structs.hpp"
 
 #include <algorithm>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string_view>
@@ -130,6 +131,11 @@ namespace nil::clix
         std::function<void(Node&)> predicate
     )
     {
+        if (key == ".fzf")
+        {
+            throw std::invalid_argument("[nil][cli]: subcommand \".fzf\" is reserved");
+        }
+
         if (find(node, key) != nullptr)
         {
             throw std::invalid_argument("[nil][cli]: subcommand \"" + key + "\" already exists");
@@ -142,6 +148,60 @@ namespace nil::clix
     {
         if (argc > 1)
         {
+            if (std::string_view(argv[1]) == ".fzf")
+            {
+                for (const auto& subnode : node.sub)
+                {
+                    std::cout << "[\t" << subnode.key << "\t]\t\t\t\t" << subnode.description
+                              << '\n';
+                }
+                for (const auto& options : node.opts)
+                {
+                    std::cout << "[\t--" << options.lkey << "\t]\t";
+                    std::visit(
+                        [&](const auto& value)
+                        {
+                            if (!value.skey.has_value())
+                            {
+                                std::cout << '\t';
+                            }
+                            else
+                            {
+                                std::cout << '-' << value.skey.value() << '\t';
+                            }
+
+                            using T = std::decay_t<decltype(value)>;
+                            // type \t implicit \t message
+                            if constexpr (std::is_same_v<T, conf::Flag>)
+                            {
+                                std::cout << "\t\t" << value.msg.value_or("") << '\n';
+                            }
+                            else if constexpr (std::is_same_v<T, conf::Number>)
+                            {
+                                std::cout << "i\t";
+                                if (value.implicit.has_value())
+                                {
+                                    std::cout << value.implicit.value();
+                                }
+                                else
+                                {
+                                }
+                                std::cout << '\t' << value.msg.value_or("") << '\n';
+                            }
+                            else if constexpr (std::is_same_v<T, conf::Param>)
+                            {
+                                std::cout << "t\t\t" << value.msg.value_or("") << '\n';
+                            }
+                            else if constexpr (std::is_same_v<T, conf::Params>)
+                            {
+                                std::cout << "t\t\t" << value.msg.value_or("") << '\n';
+                            }
+                        },
+                        options.option
+                    );
+                }
+                return 0;
+            }
             if (const auto* subnode = find(node, argv[1]); subnode != nullptr)
             {
                 Node next_node;

@@ -9,7 +9,7 @@ set -euo pipefail
 # Example:
 #   nil-clix-fzf ./bin/sandbox
 #
-# The script discovers options and subcommands from "<binary> [sub...] --help",
+# The script discovers options and subcommands from "<binary> [sub...] .fzf",
 # allows selecting them with fzf, and executes the final command.
 
 if [[ -z "${BASH_VERSION:-}" ]]; then
@@ -27,8 +27,9 @@ declare -a _nil_clix_cmd=()
 declare -a _nil_clix_text_arg_flags=()
 declare -a _nil_clix_undo_steps=()
 declare -a _nil_clix_subcmds=()
-declare _nil_clix_last_token='[EXEC]'
-declare _nil_clix_help_output=''
+declare -a _nil_clix_row_fields=()
+declare _nil_clix_last_token='EXEC'
+declare _nil_clix_fzf_output=''
 declare _nil_clix_input_header=''
 
 _usage() {
@@ -40,7 +41,7 @@ Interactively build a nil/clix command with fzf and execute it.
 Controls inside picker:
   - pick an item: add argument
   - [EXEC]: execute command
-  - [BACK]: undo last step
+  - [UNDO]: undo last step
   - [QUIT]: exit without running
 EOF
 }
@@ -61,15 +62,37 @@ _cmd_prompt() {
     printf ' > '
 }
 
+_nil_clix_parse_row() {
+    local remainder="$1"
+
+    _nil_clix_row_fields=()
+    while [[ "$remainder" == *$'\t'* ]]; do
+        _nil_clix_row_fields+=("${remainder%%$'\t'*}")
+        remainder="${remainder#*$'\t'}"
+    done
+    _nil_clix_row_fields+=("$remainder")
+}
+
+_formatted_row_token() {
+    _nil_clix_parse_row "$1"
+
+    local token="${_nil_clix_row_fields[1]:-}"
+    token="${token#"${token%%[![:space:]]*}"}"
+    token="${token%"${token##*[![:space:]]}"}"
+    printf '%s' "$token"
+}
+
 _candidate_position() {
     local candidates="$1"
     local token="$2"
     local line_number=0
     local entry
+    local entry_token
 
     while IFS= read -r entry; do
         line_number=$((line_number + 1))
-        if [[ "${entry#*$'\t'}" == "$token" ]]; then
+        entry_token=$(_formatted_row_token "$entry")
+        if [[ "$entry_token" == "$token" ]]; then
             printf '%s' "$line_number"
             return 0
         fi
@@ -84,177 +107,119 @@ _die() {
 }
 
 _nil_clix_option_candidates() {
-    awk '
-        /^OPTIONS:/ { in_opts=1; next }
-        /^[A-Z][A-Z]*:/ { in_opts=0 }
-        in_opts && /^[[:space:]]+-/ { print }
-    ' <<< "$1" \
-    | awk '
-        function trim(value) {
-            sub(/^[[:space:]]+/, "", value)
-            sub(/[[:space:]]+$/, "", value)
-            return value
-        }
-
-        function parse_option_line(line,      label_col, shortopt, remainder, extra, desc, chunk, spec_end) {
-            label_col = ""
-            shortopt = ""
-            longopt = ""
-            remainder = ""
-            extra = ""
-            desc = ""
-
-            if (match(line, /--[A-Za-z][A-Za-z0-9_-]+/)) {
-                longopt = substr(line, RSTART, RLENGTH)
-            }
-            if (longopt != "") {
-                label_col = longopt
-            }
-            if (match(line, /(^|[[:space:]])-[A-Za-z]([[:space:]]|$)/)) {
-                shortopt = trim(substr(line, RSTART, RLENGTH))
-            }
-
-            remainder = line
-            spec_end = 0
-            if (match(line, /\[[[:space:]]+--[A-Za-z][A-Za-z0-9_-]+[[:space:]]+\]/)) {
-                spec_end = RSTART + RLENGTH - 1
-            }
-            if (spec_end > 0) {
-                remainder = substr(line, spec_end + 1)
-            }
-            remainder = trim(remainder)
-
-            while (match(remainder, /^(value|text|texts|\[=[^]]+\]|\(=[^)]+\))([[:space:]]+|$)/)) {
-                chunk = trim(substr(remainder, RSTART, RLENGTH))
-                if (extra == "") {
-                    extra = chunk
-                } else {
-                    extra = extra " " chunk
-                }
-                remainder = trim(substr(remainder, RLENGTH + 1))
-            }
-
-            desc = remainder
-
-            printf "%s\topt\t%s\t%s\t%s\t%s\n", longopt, label_col, shortopt, extra, desc
-        }
-
-        {
-            parse_option_line($0)
-        }
-    '
+    awk -F '\t' 'NF >= 7 && $2 ~ /^--/ { print }' <<< "$1"
 }
 
 _nil_clix_option_is_repeatable() {
-    local extra="$1"
+    local value_type="$1"
+    local implicit="$2"
 
-    [[ "$extra" == "texts" ]]
+    [[ "$value_type" == "t" && -z "$implicit" ]]
 }
 
 _nil_clix_subcommand_candidates() {
-    awk '
-        /^SUBCOMMANDS:/ { f=1; next }
-        /^[[:space:]]*$/ { f=0 }
-        /^[A-Z][A-Z]*:/ { f=0 }
-        f && /^  [a-zA-Z]/ {
-            desc = substr($0, index($0, $2))
-            printf "%s\tsub\t%s\t\t\t%s\n", $1, $1, desc
-        }
-    ' <<< "$1"
+    awk -F '\t' 'NF >= 7 && $2 !~ /^--/ { print }' <<< "$1"
 }
 
 _nil_clix_format_candidates() {
     awk -F '\t' '
-        function meta_label(token_value,      raw_value) {
-            raw_value = token_value
-            sub(/^\[/, "", raw_value)
-            sub(/\]$/, "", raw_value)
-            return raw_value
-        }
-
         {
-            token[NR] = $1
-            kind[NR] = $2
-            col1[NR] = $3
-            col2[NR] = $4
-            col3[NR] = $5
-            col4[NR] = $6
+            col1[NR] = $1
+            col2[NR] = $2
+            col3[NR] = $3
+            col4[NR] = $4
+            col7[NR] = $7
 
-            if (kind[NR] == "meta" && col1[NR] == "") {
-                col1[NR] = meta_label(token[NR])
-            }
-
-            if (length(col1[NR]) > width1) {
-                width1 = length(col1[NR])
-            }
             if (length(col2[NR]) > width2) {
                 width2 = length(col2[NR])
             }
-            if (length(col3[NR]) > width3) {
-                width3 = length(col3[NR])
+            if (length(col4[NR]) > width4) {
+                width4 = length(col4[NR])
             }
         }
 
         END {
             for (row_index = 1; row_index <= NR; row_index++) {
-                printf "[ %-*s ]  %-*s  %-*s  %s\t%s\n",
-                    width1, col1[row_index],
+                printf "%s %-*s %s  %-*s  %s\t%s\n",
+                    col1[row_index],
                     width2, col2[row_index],
-                    width3, col3[row_index],
-                    col4[row_index],
-                    token[row_index]
+                    col3[row_index],
+                    width4, col4[row_index],
+                    col7[row_index],
+                    col2[row_index]
             }
         }
     '
 }
 
-_nil_clix_option_line() {
-    local help="$1"
-    local opt="${2#-}"; opt="${opt#-}"
-    awk '/^OPTIONS:/{f=1;next} /^[A-Z][A-Z]*:/{f=0} f && /^[[:space:]]+-/{print}' <<< "$help" \
-    | grep -E "(--${opt}[^a-zA-Z0-9_-]|-[A-Za-z][[:space:]]\[.*--${opt})" \
-    | head -1 || true
+_nil_clix_option_row() {
+    local fzf_output="$1"
+    local token="$2"
+
+    awk -F '\t' -v token="$token" 'NF >= 7 && $2 == token { print; exit }' <<< "$fzf_output"
+}
+
+_nil_clix_option_repeatable() {
+    local fzf_output="$1"
+    local token="$2"
+    local option_row
+    local value_type
+    local implicit
+
+    option_row=$(_nil_clix_option_row "$fzf_output" "$token")
+    [[ -z "$option_row" ]] && return 1
+
+    _nil_clix_parse_row "$option_row"
+    value_type="${_nil_clix_row_fields[4]:-}"
+    implicit="${_nil_clix_row_fields[5]:-}"
+    _nil_clix_option_is_repeatable "$value_type" "$implicit"
 }
 
 _nil_clix_option_value_kind() {
-    local help="$1"
+    local fzf_output="$1"
     local token="$2"
-    local line
-    line=$(_nil_clix_option_line "$help" "$token")
-    [[ -z "$line" ]] && { echo none; return; }
+    local option_row
+    local value_type
+    local implicit
 
-    if [[ "$line" =~ \][[:space:]]+\[=text\(= ]]; then
-        echo optional-text
-        return
-    fi
-    if [[ "$line" =~ \][[:space:]]+\[=value\(= ]]; then
-        echo optional-value
-        return
-    fi
-    if [[ "$line" =~ \][[:space:]]+text[[:space:]] ]]; then
-        echo required-text
-        return
-    fi
-    if [[ "$line" =~ \][[:space:]]+texts[[:space:]] ]]; then
-        echo required-texts
-        return
-    fi
-    if [[ "$line" =~ \][[:space:]]+value[[:space:]] ]]; then
-        echo required-value
-        return
-    fi
-    echo none
+    option_row=$(_nil_clix_option_row "$fzf_output" "$token")
+    [[ -z "$option_row" ]] && { echo none; return; }
+
+    _nil_clix_parse_row "$option_row"
+    value_type="${_nil_clix_row_fields[4]:-}"
+    implicit="${_nil_clix_row_fields[5]:-}"
+
+    case "$value_type" in
+        i)
+            if [[ -n "$implicit" ]]; then
+                echo optional-value
+            else
+                echo required-value
+            fi
+            ;;
+        t)
+            echo required-text
+            ;;
+        *)
+            echo none
+            ;;
+    esac
 }
 
 _nil_clix_option_implicit_value() {
-    local help="$1"
+    local fzf_output="$1"
     local token="$2"
-    local line
+    local option_row
+    local implicit
 
-    line=$(_nil_clix_option_line "$help" "$token")
-    [[ -z "$line" ]] && return 0
+    option_row=$(_nil_clix_option_row "$fzf_output" "$token")
+    [[ -z "$option_row" ]] && return 0
 
-    printf '%s' "$line" | sed -n 's/.*\[=[^]]*(=\([^)]*\))\].*/\1/p'
+    _nil_clix_parse_row "$option_row"
+    implicit="${_nil_clix_row_fields[5]:-}"
+    if [[ -n "$implicit" ]]; then
+        printf '%s' "$implicit"
+    fi
 }
 
 _nil_clix_option_is_used() {
@@ -271,18 +236,16 @@ _nil_clix_option_is_used() {
 }
 
 _nil_clix_refresh_used_options() {
-    local help_output="$1"
+    local fzf_output="$1"
     shift
 
     _nil_clix_used_options=()
 
     local arg
-    local value_kind
     for arg in "$@"; do
         [[ "$arg" == -* ]] || continue
 
-        value_kind=$(_nil_clix_option_value_kind "$help_output" "$arg")
-        if [[ "$value_kind" == "required-texts" ]]; then
+        if _nil_clix_option_repeatable "$fzf_output" "$arg"; then
             continue
         fi
 
@@ -293,26 +256,28 @@ _nil_clix_refresh_used_options() {
 }
 
 _nil_clix_visible_option_candidates() {
-    local help_output="$1"
+    local fzf_output="$1"
+    local option_row
     local token
-    local kind
-    local label
-    local shortopt
-    local extra
-    local desc
+    local value_type
+    local implicit
 
-    while IFS=$'\t' read -r token kind label shortopt extra desc; do
+    while IFS= read -r option_row; do
+        _nil_clix_parse_row "$option_row"
+        token="${_nil_clix_row_fields[1]:-}"
         [[ -z "$token" ]] && continue
 
+        value_type="${_nil_clix_row_fields[4]:-}"
+        implicit="${_nil_clix_row_fields[5]:-}"
+
         if _nil_clix_option_is_used "$token"; then
-            if ! _nil_clix_option_is_repeatable "$extra"; then
+            if ! _nil_clix_option_is_repeatable "$value_type" "$implicit"; then
                 continue
             fi
         fi
 
-        printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
-            "$token" "$kind" "$label" "$shortopt" "$extra" "$desc"
-    done < <(_nil_clix_option_candidates "$help_output")
+        printf '%s\n' "$option_row"
+    done < <(_nil_clix_option_candidates "$fzf_output")
 }
 
 _nil_clix_requires_value() {
@@ -350,7 +315,7 @@ _nil_clix_read_option_value() {
 
     if _nil_clix_value_is_optional "$value_kind"; then
         allow_empty='true'
-        implicit_value=$(_nil_clix_option_implicit_value "$_nil_clix_help_output" "$token")
+        implicit_value=$(_nil_clix_option_implicit_value "$_nil_clix_fzf_output" "$token")
         if [[ -n "$implicit_value" ]]; then
             prompt_suffix=" (empty = ${implicit_value})"
         else
@@ -362,6 +327,14 @@ _nil_clix_read_option_value() {
         opt_value=$(_read_free_arg "${token}>${prompt_suffix} " "$allow_empty")
 
         if [[ -z "$opt_value" ]]; then
+            if [[ "$value_kind" == "required-value" ]]; then
+                _nil_clix_input_header="error: ${token} requires an integer value"
+                continue
+            fi
+            if [[ "$value_kind" == "required-text" ]]; then
+                _nil_clix_input_header="error: ${token} requires a value"
+                continue
+            fi
             _nil_clix_input_header=''
             printf '%s' "$opt_value"
             return 0
@@ -447,14 +420,14 @@ _build_candidates() {
     local has_selected_option="$1"
 
     {
-        printf '[EXEC]\tmeta\t\t\t\tExecute current command\n'
+        printf '[\tEXEC\t]\t\t\t\tExecute current command\n'
         if [[ ${#_nil_clix_undo_steps[@]} -gt 0 ]]; then
-            printf '[BACK]\tmeta\t\t\t\tUndo last step\n'
+            printf '[\tUNDO\t]\t\t\t\tUndo last step\n'
         fi
-        printf '[QUIT]\tmeta\t\t\t\tExit without running\n'
-        _nil_clix_visible_option_candidates "$_nil_clix_help_output"
+        printf '[\tQUIT\t]\t\t\t\tExit without running\n'
+        _nil_clix_visible_option_candidates "$_nil_clix_fzf_output"
         if [[ "$has_selected_option" != "true" ]]; then
-            _nil_clix_subcommand_candidates "$_nil_clix_help_output"
+            _nil_clix_subcommand_candidates "$_nil_clix_fzf_output"
         fi
     } | _nil_clix_format_candidates
 }
@@ -497,7 +470,7 @@ main() {
     _nil_clix_cmd=("$@")
     _nil_clix_text_arg_flags=()
     _nil_clix_undo_steps=()
-    _nil_clix_last_token='[EXEC]'
+    _nil_clix_last_token='EXEC'
     if [[ ! -x "${_nil_clix_cmd[0]}" ]] && ! command -v "${_nil_clix_cmd[0]}" >/dev/null 2>&1; then
         _die "binary not found: ${_nil_clix_cmd[0]}"
     fi
@@ -513,12 +486,12 @@ main() {
     while true; do
         _build_subcmd_chain
 
-        _nil_clix_help_output=$("${_nil_clix_cmd[0]}" "${_nil_clix_subcmds[@]}" --help 2>/dev/null || true)
-        if [[ -z "$_nil_clix_help_output" ]]; then
-            _die "unable to resolve help for context: ${_nil_clix_subcmds[*]}"
+        _nil_clix_fzf_output=$("${_nil_clix_cmd[0]}" "${_nil_clix_subcmds[@]}" .fzf 2>/dev/null || true)
+        if [[ -z "$_nil_clix_fzf_output" ]]; then
+            _die "unable to resolve .fzf context: ${_nil_clix_subcmds[*]}"
         fi
 
-        _nil_clix_refresh_used_options "$_nil_clix_help_output" "${_nil_clix_cmd[@]:1}"
+        _nil_clix_refresh_used_options "$_nil_clix_fzf_output" "${_nil_clix_cmd[@]:1}"
 
         local has_selected_option='false'
         if _nil_clix_has_selected_option "${_nil_clix_cmd[@]:1}"; then
@@ -533,15 +506,16 @@ main() {
 
         [[ -z "$selected" ]] && continue
 
-        local token="${selected#*$'\t'}"
+        local token=''
+        token=$(_formatted_row_token "$selected")
 
         case "$token" in
-            '[EXEC]')
+            'EXEC')
                 echo "exec -- ${_nil_clix_cmd[@]}"
                 exec "${_nil_clix_cmd[@]}"
                 ;;
-            '[BACK]')
-                _nil_clix_last_token='[BACK]'
+            'UNDO')
+                _nil_clix_last_token='UNDO'
                 if [[ ${#_nil_clix_undo_steps[@]} -gt 0 ]]; then
                     local undo_count="${_nil_clix_undo_steps[${#_nil_clix_undo_steps[@]}-1]}"
                     unset '_nil_clix_undo_steps[${#_nil_clix_undo_steps[@]}-1]'
@@ -549,7 +523,7 @@ main() {
                     _pop_cmd_args "$undo_count"
                 fi
                 ;;
-            '[QUIT]')
+            'QUIT')
                 exit 0
                 ;;
             *)
@@ -559,7 +533,7 @@ main() {
                 if [[ "$token" == -* ]]; then
                     _nil_clix_last_token="$token"
                     local value_kind
-                    value_kind=$(_nil_clix_option_value_kind "$_nil_clix_help_output" "$token")
+                    value_kind=$(_nil_clix_option_value_kind "$_nil_clix_fzf_output" "$token")
 
                     if _nil_clix_requires_value "$value_kind"; then
                         local opt_value
