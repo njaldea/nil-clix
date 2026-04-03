@@ -221,8 +221,18 @@ namespace nil::clix
         return 0;
     }
 
-    N create_node()
+    Node* create_node()
     {
-        return N{{new Node(), [](Node* node) { std::default_delete<Node>()(node); }}};
+        return new Node(); // NOLINT
+    }
+
+    void destroy_node(Node* node)
+    {
+        delete node; // NOLINT
+    }
+
+    N make_node()
+    {
+        return N(create_node(), &destroy_node);
     }
 } // namespace nil::clix

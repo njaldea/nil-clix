@@ -11,6 +11,10 @@
         "test": {
             "description": "Enable tests",
             "dependencies": [ "gtest" ]
+        },
+        "c-api": {
+            "description": "Enable C api",
+            "dependencies": ["nil-xalt"]
         }
     }
 }

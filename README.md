@@ -4,6 +4,8 @@ This library is only intended to simplify arg parsing and allow nesting of sub c
 
 Simplification is done by limiting the touch points to the internal library and providing more concrete option types with very opinionated defaults.
 
+- C API guide: [docs/c-api.md](docs/c-api.md)
+
 ## Objects
 
 ### `nil::clix::Node`

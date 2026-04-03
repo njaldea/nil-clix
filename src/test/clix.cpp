@@ -37,7 +37,7 @@ namespace
 TEST(cli, base)
 {
     auto args = std::array<const char*, 1>{"Program"};
-    ASSERT_EQ(run(nil::clix::create_node(), args.size(), args.data()), 0);
+    ASSERT_EQ(run(nil::clix::make_node(), args.size(), args.data()), 0);
 }
 
 TEST(cli, depth_one)
@@ -58,7 +58,7 @@ TEST(cli, depth_one)
 
     auto args = std::array{"Program"};
 
-    auto node = nil::clix::create_node();
+    auto node = nil::clix::make_node();
     apply(node, mock);
     ASSERT_EQ(run(node, args.size(), args.data()), 0);
 }
@@ -67,7 +67,7 @@ TEST(cli, depth_deep)
 {
     testing::StrictMock<testing::MockFunction<int(const nil::clix::Options&)>> mock;
 
-    auto root = nil::clix::create_node();
+    auto root = nil::clix::make_node();
 
     apply(root, mock);
 
@@ -134,7 +134,7 @@ TEST(cli, depth_deep)
 
 TEST(cli, required_number_is_enforced)
 {
-    auto node = nil::clix::create_node();
+    auto node = nil::clix::make_node();
     number(node, "thread", {.skey = 't', .msg = "number of threads"});
     use(node,
         [](const nil::clix::Options& options)
@@ -150,7 +150,7 @@ TEST(cli, required_number_is_enforced)
 
 TEST(cli, duplicate_long_option_is_rejected)
 {
-    auto node = nil::clix::create_node();
+    auto node = nil::clix::make_node();
 
     flag(node, "help", {.skey = 'h', .msg = "show this help"});
 
@@ -159,7 +159,7 @@ TEST(cli, duplicate_long_option_is_rejected)
 
 TEST(cli, duplicate_short_option_is_rejected)
 {
-    auto node = nil::clix::create_node();
+    auto node = nil::clix::make_node();
 
     flag(node, "help", {.skey = 'h', .msg = "show this help"});
 
@@ -174,7 +174,7 @@ TEST(cli, option_and_subcommand_can_share_name)
     testing::StrictMock<testing::MockFunction<int(const nil::clix::Options&)>> root_mock;
     testing::StrictMock<testing::MockFunction<void()>> sub_mock;
 
-    auto node = nil::clix::create_node();
+    auto node = nil::clix::make_node();
 
     flag(node, "help", {.skey = 'h', .msg = "show this help"});
     use(node, [&root_mock](const nil::clix::Options& options) { return root_mock.Call(options); });
@@ -211,7 +211,7 @@ TEST(cli, access_reports_invalid_conversion)
 {
     testing::StrictMock<testing::MockFunction<int(const nil::clix::Options&)>> mock;
 
-    auto node = nil::clix::create_node();
+    auto node = nil::clix::make_node();
     flag(node, "flag", {.skey = 'f', .msg = "flag msg"});
     use(node,
         [&mock](const nil::clix::Options& options)
@@ -238,7 +238,7 @@ TEST(cli, access_reports_unknown_option)
 {
     testing::StrictMock<testing::MockFunction<int(const nil::clix::Options&)>> mock;
 
-    auto node = nil::clix::create_node();
+    auto node = nil::clix::make_node();
     flag(node, "flag", {.skey = 'f', .msg = "flag msg"});
     use(node,
         [&mock](const nil::clix::Options& options)

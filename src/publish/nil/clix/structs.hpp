@@ -5,17 +5,31 @@
 namespace nil::clix
 {
     struct Node;
-    struct Options;
 
     struct N
     {
-        std::unique_ptr<Node, void (*)(Node*)> ptr;
+    public:
+        explicit N(Node* node, void (*cleanup)(Node*))
+            : ptr(node, cleanup)
+        {
+        }
+
+        ~N() noexcept = default;
+
+        N(const N&) = delete;
+        N& operator=(const N&) = delete;
+
+        N(N&&) = default;
+        N& operator=(N&&) = default;
 
         operator Node&() const // NOLINT
         {
             return *ptr;
         }
+
+    private:
+        std::unique_ptr<Node, void (*)(Node*)> ptr;
     };
 
-    using node_ptr_t = std::unique_ptr<Node, void (*)(Node*)>;
+    N make_node();
 }

@@ -158,7 +158,7 @@ namespace nil::clix
         }
     }
 
-    bool has_value(const Options& options, const std::string& lkey)
+    bool has_value(const Options& options, const std::string& lkey) noexcept
     {
         return options.vm.count(lkey) > 0;
     }

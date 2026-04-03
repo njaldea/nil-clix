@@ -1,7 +1,5 @@
 #pragma once
 
-#include "structs.hpp"
-
 #include <cstdint>
 #include <ostream>
 #include <string>
@@ -9,6 +7,8 @@
 
 namespace nil::clix
 {
+    struct Options;
+
     void help(const Options& options, std::ostream& os);
 
     bool has_value(const Options& options, const std::string& lkey) noexcept;

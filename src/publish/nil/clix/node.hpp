@@ -4,6 +4,7 @@
 #include "conf/Number.hpp"
 #include "conf/Param.hpp"
 #include "conf/Params.hpp"
+#include "options.hpp"
 #include "structs.hpp"
 
 #include <functional>
@@ -26,5 +27,6 @@ namespace nil::clix
 
     int run(const Node& node, int argc, const char* const* argv);
 
-    N create_node();
+    Node* create_node();
+    void destroy_node(Node* node);
 }

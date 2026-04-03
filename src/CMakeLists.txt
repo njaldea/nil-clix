@@ -32,3 +32,20 @@ install(PROGRAMS nil-clix-fzf DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 nil_install_headers(${PROJECT_NAME} PUBLIC)
 nil_install_targets(${PROJECT_NAME})
+
+if(ENABLE_C_API)
+    find_package(nil-xalt CONFIG REQUIRED)
+
+    add_library(
+        ${PROJECT_NAME}-c-api
+        SHARED
+        publish/nil/clix.h
+        src/clix.cpp
+    )
+
+    target_link_libraries(${PROJECT_NAME}-c-api PRIVATE ${PROJECT_NAME})
+    target_link_libraries(${PROJECT_NAME}-c-api PRIVATE $<BUILD_INTERFACE:nil::xalt>)
+
+    nil_install_headers(${PROJECT_NAME}-c-api INTERFACE)
+    nil_install_targets(${PROJECT_NAME}-c-api)
+endif()

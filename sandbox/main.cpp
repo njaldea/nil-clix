@@ -6,7 +6,7 @@
 // NOLINTNEXTLINE
 int main(int argc, const char** argv)
 {
-    auto root = nil::clix::create_node();
+    auto root = nil::clix::make_node();
     flag(root, "help", {.skey = 'h', .msg = "show this help"});
     sub(root,
         "flags",
