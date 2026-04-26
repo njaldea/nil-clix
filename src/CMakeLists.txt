@@ -40,7 +40,7 @@ if(ENABLE_C_API)
         ${PROJECT_NAME}-c-api
         SHARED
         publish/nil/clix.h
-        src/clix.cpp
+        src/c/clix.cpp
     )
 
     target_link_libraries(${PROJECT_NAME}-c-api PRIVATE ${PROJECT_NAME})
