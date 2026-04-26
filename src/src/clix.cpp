@@ -130,8 +130,9 @@ extern "C"
             *to_node(node),
             [exec = callback.exec, holder](const nil::clix::Options& options)
             {
-                auto c_options = OptionsHandle{.options = &options, .cache = {}};
-                return exec({.handle = &c_options}, holder->object);
+                auto h_options = OptionsHandle{.options = &options, .cache = {}};
+                auto c_options = nil_clix_options{.handle = &h_options};
+                return exec(&c_options, holder->object);
             }
         );
     }
@@ -149,7 +150,10 @@ extern "C"
             key,
             description,
             [exec = callback.exec, holder](nil::clix::Node& child)
-            { exec({.handle = &child}, holder->object); }
+            {
+                auto c_node = nil_clix_node{.handle = &child};
+                exec(&c_node, holder->object);
+            }
         );
     }
 

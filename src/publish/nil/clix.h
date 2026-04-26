@@ -67,7 +67,7 @@ extern "C"
     // NOLINTNEXTLINE(modernize-use-using)
     typedef struct nil_clix_exec_info
     {
-        int (*exec)(nil_clix_options options, void*);
+        int (*exec)(const nil_clix_options* options, void*);
         void* context;
         void (*cleanup)(void*);
     } nil_clix_exec_info;
@@ -75,7 +75,7 @@ extern "C"
     // NOLINTNEXTLINE(modernize-use-using)
     typedef struct nil_clix_sub_info
     {
-        void (*exec)(nil_clix_node node, void*);
+        void (*exec)(nil_clix_node* node, void*);
         void* context;
         void (*cleanup)(void*);
     } nil_clix_sub_info;

@@ -65,7 +65,7 @@ namespace nil::clix
             if (has_long_key(node, lkey))
             {
                 throw std::invalid_argument(
-                    "[nil][cli]: option \"" + std::string(lkey) + "\" already exists"
+                    "[nil][clix]: option \"" + std::string(lkey) + "\" already exists"
                 );
             }
 
@@ -73,7 +73,7 @@ namespace nil::clix
                 skey.has_value() && has_short_key(node, skey.value()))
             {
                 throw std::invalid_argument(
-                    "[nil][cli]: short option \"-" + std::string(1, skey.value())
+                    "[nil][clix]: short option \"-" + std::string(1, skey.value())
                     + "\" already exists"
                 );
             }
@@ -133,17 +133,18 @@ namespace nil::clix
     {
         if (key == ".fzf")
         {
-            throw std::invalid_argument("[nil][cli]: subcommand \".fzf\" is reserved");
+            throw std::invalid_argument("[nil][clix]: subcommand \".fzf\" is reserved");
         }
 
         if (find(node, key) != nullptr)
         {
-            throw std::invalid_argument("[nil][cli]: subcommand \"" + key + "\" already exists");
+            throw std::invalid_argument("[nil][clix]: subcommand \"" + key + "\" already exists");
         }
 
         node.sub.emplace_back(std::move(key), std::move(description), std::move(predicate));
     }
 
+    // NOLINTNEXTLINE(readability-function-cognitive-complexity)
     int run(const Node& node, int argc, const char* const* argv)
     {
         if (argc > 1)
@@ -188,11 +189,8 @@ namespace nil::clix
                                 }
                                 std::cout << '\t' << value.msg.value_or("") << '\n';
                             }
-                            else if constexpr (std::is_same_v<T, conf::Param>)
-                            {
-                                std::cout << "t\t\t" << value.msg.value_or("") << '\n';
-                            }
-                            else if constexpr (std::is_same_v<T, conf::Params>)
+                            else if constexpr (std::is_same_v<T, conf::Param>
+                                               || std::is_same_v<T, conf::Params>)
                             {
                                 std::cout << "t\t\t" << value.msg.value_or("") << '\n';
                             }
@@ -215,8 +213,20 @@ namespace nil::clix
 
         if (node.exec)
         {
-            const auto options = parse(node.opts, node.sub, argc, argv);
-            return node.exec(options);
+            try
+            {
+                return node.exec(parse(node.opts, node.sub, argc, argv));
+            }
+            catch (const std::exception& ex)
+            {
+                std::fprintf(stderr, "%s\n", ex.what());
+                return 1;
+            }
+            catch (...)
+            {
+                std::fprintf(stderr, "[nil][clix] unknown error\n");
+                return 2;
+            }
         }
         return 0;
     }

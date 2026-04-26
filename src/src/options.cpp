@@ -36,6 +36,7 @@ namespace nil::clix
         }
         else
         {
+            // wont be checked while parsing, needs to check has_value first
             value->required();
         }
         i(opt.c_str(), value, conf.msg.value_or("").c_str());
@@ -56,6 +57,7 @@ namespace nil::clix
         }
         else
         {
+            // wont be checked while parsing, needs to check has_value first
             value->required();
         }
         i(opt.c_str(), value, conf.msg.value_or("").c_str());
@@ -95,7 +97,7 @@ namespace nil::clix
         try
         {
             boost::program_options::positional_options_description positional;
-            positional.add("__nil_cli_pos_args", 0);
+            positional.add("__nil_cli_pos_args", -1);
 
             boost::program_options::command_line_parser parser(argc, argv);
             parser                    //
@@ -103,10 +105,15 @@ namespace nil::clix
                 .positional(positional);
 
             boost::program_options::store(parser.run(), retval.vm);
+            // not notified since if user wants to call help,
+            // missing options should not throw.
+            // users must still check with has_value
+            // first before accessing
+            // boost::program_options::notify(retval.vm);
         }
         catch (const std::exception& ex)
         {
-            throw std::invalid_argument(std::string("[nil][cli] ") + ex.what());
+            throw std::invalid_argument(std::string("[nil][clix] ") + ex.what());
         }
 
         for (const auto& node : subs)
@@ -121,22 +128,26 @@ namespace nil::clix
     {
         if (options.desc.options().empty() && options.sub.empty())
         {
-            os << "No option available\n";
+            os << "No option available";
             return;
         }
 
         if (!options.desc.options().empty())
         {
             options.desc.print(os);
-            os << '\n';
+            if (!options.sub.empty())
+            {
+                os << '\n';
+            }
         }
 
         if (!options.sub.empty())
         {
             os << "SUBCOMMANDS:\n";
             const auto width = options.desc.get_option_column_width();
-            for (const auto& [key, subdesc] : options.sub)
+            for (auto i = 0UL; i < options.sub.size(); ++i)
             {
+                const auto [key, subdesc] = options.sub[i];
                 os << "  "                      //
                    << std::left                 //
                    << std::setw(int(width - 2)) //
@@ -152,9 +163,11 @@ namespace nil::clix
                     }
                     os << c;
                 }
-                os << '\n';
+                if (i != options.sub.size() - 1)
+                {
+                    os << '\n';
+                }
             }
-            os << '\n';
         }
     }
 
@@ -182,17 +195,17 @@ namespace nil::clix
                 catch (const std::exception& ex)
                 {
                     throw std::invalid_argument(
-                        "[nil][cli]: option \"" + k + "\" cannot be accessed: " + ex.what()
+                        "[nil][clix]: option \"" + k + "\" cannot be accessed: " + ex.what()
                     );
                 }
             }
 
             if (known(options, k))
             {
-                throw std::invalid_argument("[nil][cli]: option \"" + k + "\" is missing");
+                throw std::invalid_argument("[nil][clix]: option \"" + k + "\" is missing");
             }
 
-            throw std::out_of_range("[nil][cli]: option \"" + k + "\" is unknown");
+            throw std::out_of_range("[nil][clix]: option \"" + k + "\" is unknown");
         }
     }
 

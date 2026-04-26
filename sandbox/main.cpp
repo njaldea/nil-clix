@@ -21,6 +21,7 @@ int main(int argc, const char** argv)
                     if (flag(options, "help"))
                     {
                         help(options, std::cout);
+                        std::cout << std::endl;
                         return 0;
                     }
                     std::cout << "Flag Node is executing\n" << std::endl;
@@ -49,6 +50,7 @@ int main(int argc, const char** argv)
                     if (flag(options, "help"))
                     {
                         help(options, std::cout);
+                        std::cout << std::endl;
                         return 0;
                     }
                     std::cout << "Numbers Node is executing\n" << std::endl;
@@ -77,6 +79,7 @@ int main(int argc, const char** argv)
                     if (flag(options, "help"))
                     {
                         help(options, std::cout);
+                        std::cout << std::endl;
                         return 0;
                     }
                     std::cout << "Params Node is executing\n" << std::endl;
@@ -100,6 +103,7 @@ int main(int argc, const char** argv)
             if (flag(options, "help"))
             {
                 help(options, std::cout);
+                std::cout << std::endl;
                 return 0;
             }
             std::cout << "Root Node is executing\n" << std::endl;
