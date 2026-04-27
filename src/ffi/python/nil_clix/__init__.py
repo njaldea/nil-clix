@@ -358,7 +358,7 @@ class Clix:
 
 
 def _load_clix_from_module_dir() -> Clix:
-    lib_path = Path(__file__).resolve().parent / "libclix-c-api.so"
+    lib_path = Path(__file__).resolve().parent / "libnil-clix-c-api.so"
     clix = ctypes.CDLL(str(lib_path))
     _configure_signatures(clix)
     return Clix(clix)

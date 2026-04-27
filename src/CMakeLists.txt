@@ -24,6 +24,7 @@ set(
 
 add_library(${PROJECT_NAME} SHARED ${SOURCES} ${HEADERS})
 
+set_target_properties(${PROJECT_NAME} PROPERTIES OUTPUT_NAME "nil-${PROJECT_NAME}")
 target_link_libraries(${PROJECT_NAME} PRIVATE $<BUILD_INTERFACE:Boost::program_options>)
 
 add_test_subdirectory()
@@ -41,11 +42,14 @@ if(ENABLE_C_API)
         SHARED
         publish/nil/clix.h
         src/c/clix.cpp
+        ${SOURCES}
+        ${HEADERS}
     )
 
-    target_link_libraries(${PROJECT_NAME}-c-api PRIVATE ${PROJECT_NAME})
+    set_target_properties(${PROJECT_NAME}-c-api PROPERTIES OUTPUT_NAME "nil-${PROJECT_NAME}-c-api")
     target_link_libraries(${PROJECT_NAME}-c-api PRIVATE $<BUILD_INTERFACE:nil::xalt>)
+    target_link_libraries(${PROJECT_NAME}-c-api PRIVATE $<BUILD_INTERFACE:Boost::program_options>)
 
-    nil_install_headers(${PROJECT_NAME}-c-api INTERFACE)
+    nil_install_headers(${PROJECT_NAME}-c-api PUBLIC)
     nil_install_targets(${PROJECT_NAME}-c-api)
 endif()

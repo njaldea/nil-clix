@@ -262,7 +262,7 @@ local function create_node(refs, lua_fns, clix, node)
     }
 end
 
-local clix = ffi.load(current_file_dir() .. "libclix-c-api.so")
+local clix = ffi.load(current_file_dir() .. "libnil-clix-c-api.so")
 
 ---@return nil_clix
 local function create_clix()
