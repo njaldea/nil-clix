@@ -295,13 +295,11 @@ class Node:
         self._clix.nil_clix_node_sub(self._node, key.encode(), description.encode(), sub_info)
 
     def run(self, argv: List[str]) -> int:
-        argc = len(argv) + 1
-        c_argv = (ctypes.c_char_p * (argc + 1))()
+        argc = len(argv)
+        c_argv = (ctypes.c_char_p * (argc))()
 
-        c_argv[0] = b"nil-clix app"
         for i, arg in enumerate(argv):
-            c_argv[i + 1] = arg.encode()
-        c_argv[argc] = None
+            c_argv[i] = arg.encode()
 
         return int(self._clix.nil_clix_node_run(self._node, argc, c_argv))
 

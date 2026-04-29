@@ -246,12 +246,11 @@ local function create_node(refs, lua_fns, clix, node)
             clix.nil_clix_node_sub(self._node, key, description, sub_info)
         end,
         run = function(self, argv)
-            local argc = #argv + 1
+            local argc = #argv
             local c_argv = ffi.new("const char*[?]", argc)
 
-            c_argv[0] = "nil-clix app"
             for i, arg in ipairs(argv) do
-                c_argv[i] = arg
+                c_argv[i - 1] = arg
             end
 
             return tonumber(clix.nil_clix_node_run(self._node, argc, c_argv))

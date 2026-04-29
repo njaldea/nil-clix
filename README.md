@@ -67,7 +67,7 @@ int main(int argc, const char** argv)
                         help(options, std::cout);
                         return 0;
                     }
-                    std::cout << "Flag Node is executing\n" << std::endl;
+                    std::cout << "Flag Node is executing" << std::endl;
                     return 0;
                 });
         });
@@ -91,7 +91,7 @@ int main(int argc, const char** argv)
                         help(options, std::cout);
                         return 0;
                     }
-                    std::cout << "Numbers Node is executing\n" << std::endl;
+                    std::cout << "Numbers Node is executing" << std::endl;
                     return 0;
                 });
         });
@@ -111,7 +111,7 @@ int main(int argc, const char** argv)
                         help(options, std::cout);
                         return 0;
                     }
-                    std::cout << "Params Node is executing\n" << std::endl;
+                    std::cout << "Params Node is executing" << std::endl;
                     return 0;
                 });
         });
@@ -123,7 +123,7 @@ int main(int argc, const char** argv)
                 help(options, std::cout);
                 return 0;
             }
-            std::cout << "Root Node is executing\n" << std::endl;
+            std::cout << "Root Node is executing" << std::endl;
             return 0;
         });
     return run(root, argc, argv);

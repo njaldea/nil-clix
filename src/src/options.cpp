@@ -99,7 +99,9 @@ namespace nil::clix
             boost::program_options::positional_options_description positional;
             positional.add("__nil_cli_pos_args", -1);
 
-            boost::program_options::command_line_parser parser(argc, argv);
+            boost::program_options::command_line_parser parser(
+                std::vector<std::string>{argv, argv + argc}
+            );
             parser                    //
                 .options(retval.desc) //
                 .positional(positional);

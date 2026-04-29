@@ -24,7 +24,7 @@ int main(int argc, const char** argv)
                         std::cout << std::endl;
                         return 0;
                     }
-                    std::cout << "Flag Node is executing\n" << std::endl;
+                    std::cout << "Flag Node is executing" << std::endl;
                     if (has_value(options, "spawn"))
                     {
                         std::cout << "spawn: " << flag(options, "spawn") << std::endl;
@@ -53,7 +53,7 @@ int main(int argc, const char** argv)
                         std::cout << std::endl;
                         return 0;
                     }
-                    std::cout << "Numbers Node is executing\n" << std::endl;
+                    std::cout << "Numbers Node is executing" << std::endl;
                     if (has_value(options, "thread"))
                     {
                         std::cout << "thread: " << number(options, "thread") << std::endl;
@@ -82,7 +82,7 @@ int main(int argc, const char** argv)
                         std::cout << std::endl;
                         return 0;
                     }
-                    std::cout << "Params Node is executing\n" << std::endl;
+                    std::cout << "Params Node is executing" << std::endl;
                     if (has_value(options, "param"))
                     {
                         std::cout << "param: " << param(options, "param") << std::endl;
@@ -106,8 +106,8 @@ int main(int argc, const char** argv)
                 std::cout << std::endl;
                 return 0;
             }
-            std::cout << "Root Node is executing\n" << std::endl;
+            std::cout << "Root Node is executing" << std::endl;
             return 0;
         });
-    return run(root, argc, argv);
+    return run(root, argc - 1, argv + 1);
 }

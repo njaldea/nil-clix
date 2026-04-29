@@ -17,6 +17,7 @@ root:sub("flags", "command for flags", function(node)
         if options:has_value("spawn") then
             print("spawn: " .. tostring(options:flag("spawn")))
         end
+        print("\n")
         return 0
     end)
 end)
@@ -37,6 +38,7 @@ root:sub("numbers", "command for numbers", function(node)
         if options:has_value("job") then
             print("job: " .. options:number("job"))
         end
+        print("\n")
         return 0
     end)
 end)
@@ -59,6 +61,7 @@ root:sub("params", "command for params", function(node)
                 print("mparam: " .. m)
             end
         end
+        print("\n")
         return 0
     end)
 end)

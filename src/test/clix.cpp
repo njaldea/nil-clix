@@ -36,7 +36,7 @@ namespace
 
 TEST(cli, base)
 {
-    auto args = std::array<const char*, 1>{"Program"};
+    auto args = std::array<const char*, 0>{};
     ASSERT_EQ(run(nil::clix::make_node(), args.size(), args.data()), 0);
 }
 
@@ -109,7 +109,7 @@ TEST(cli, depth_deep)
             .WillOnce(testing::Return(0))
             .RetiresOnSaturation();
 
-        auto args = std::array{"Program"};
+        auto args = std::array<const char*, 0>{};
         ASSERT_EQ(run(root, args.size(), args.data()), 0);
     }
     {
@@ -118,7 +118,7 @@ TEST(cli, depth_deep)
             .WillOnce(testing::Return(0))
             .RetiresOnSaturation();
 
-        auto args = std::array{"Program", "sub1"};
+        auto args = std::array{"sub1"};
         ASSERT_EQ(run(root, args.size(), args.data()), 0);
     }
     {
@@ -127,7 +127,7 @@ TEST(cli, depth_deep)
             .WillOnce(testing::Return(0))
             .RetiresOnSaturation();
 
-        auto args = std::array{"Program", "sub1", "sub2"};
+        auto args = std::array{"sub1", "sub2"};
         ASSERT_EQ(run(root, args.size(), args.data()), 0);
     }
 }
@@ -143,7 +143,7 @@ TEST(cli, required_number_is_enforced)
             return 0;
         });
 
-    auto args = std::array{"Program"};
+    auto args = std::array<const char*, 0>{};
 
     EXPECT_THROW(run(node, args.size(), args.data()), std::invalid_argument);
 }
@@ -200,10 +200,10 @@ TEST(cli, option_and_subcommand_can_share_name)
         .WillOnce(testing::Return(11));
     EXPECT_CALL(sub_mock, Call()).Times(1);
 
-    auto option_args = std::array{"Program", "--help"};
+    auto option_args = std::array{"--help"};
     ASSERT_EQ(run(node, option_args.size(), option_args.data()), 11);
 
-    auto subcommand_args = std::array{"Program", "help"};
+    auto subcommand_args = std::array{"help"};
     ASSERT_EQ(run(node, subcommand_args.size(), subcommand_args.data()), 17);
 }
 
@@ -230,7 +230,7 @@ TEST(cli, access_reports_invalid_conversion)
             }
         ));
 
-    auto args = std::array{"Program", "--flag"};
+    auto args = std::array{"--flag"};
     ASSERT_EQ(run(node, args.size(), args.data()), 0);
 }
 
@@ -257,6 +257,6 @@ TEST(cli, access_reports_unknown_option)
             }
         ));
 
-    auto args = std::array{"Program"};
+    auto args = std::array<const char*, 0>{};
     ASSERT_EQ(run(node, args.size(), args.data()), 0);
 }

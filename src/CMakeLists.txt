@@ -52,4 +52,6 @@ if(ENABLE_C_API)
 
     nil_install_headers(${PROJECT_NAME}-c-api PUBLIC)
     nil_install_targets(${PROJECT_NAME}-c-api)
+
+    setup_pypi("${CMAKE_SOURCE_DIR}/cmake/pyproject.toml.in")
 endif()

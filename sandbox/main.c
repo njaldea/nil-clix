@@ -21,7 +21,7 @@ static int run_flags(const nil_clix_options* options, void* context)
         return 0;
     }
 
-    printf("Flag Node is executing\n\n");
+    printf("Flag Node is executing\n");
     if (nil_clix_options_has_value(*options, "spawn") != 0)
     {
         printf("spawn: %d\n", nil_clix_options_flag(*options, "spawn"));
@@ -55,7 +55,7 @@ static int run_numbers(const nil_clix_options* options, void* context)
         return 0;
     }
 
-    printf("Numbers Node is executing\n\n");
+    printf("Numbers Node is executing\n");
     if (nil_clix_options_has_value(*options, "thread") != 0)
     {
         printf("thread: %ld\n", nil_clix_options_number(*options, "thread"));
@@ -98,7 +98,7 @@ static int run_params(const nil_clix_options* options, void* context)
         return 0;
     }
 
-    printf("Params Node is executing\n\n");
+    printf("Params Node is executing\n");
     if (nil_clix_options_has_value(*options, "param") != 0)
     {
         printf("param: %s\n", nil_clix_options_param(*options, "param"));
@@ -143,7 +143,7 @@ static int run_root(const nil_clix_options* options, void* context)
         return 0;
     }
 
-    printf("Root Node is executing\n\n");
+    printf("Root Node is executing\n");
     return 0;
 }
 
@@ -173,7 +173,7 @@ int main(int argc, const char* const* argv)
     nil_clix_node_use(root, root_exec);
 
     // Run and cleanup
-    const int exit_code = nil_clix_node_run(root, argc, argv);
+    const int exit_code = nil_clix_node_run(root, argc -1 , argv + 1);
     nil_clix_node_destroy(root);
     return exit_code;
 }
