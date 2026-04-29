@@ -2,7 +2,6 @@
 
 #include <algorithm>
 #include <iostream>
-#include <memory>
 #include <stdexcept>
 #include <string_view>
 #include <utility>
@@ -82,15 +81,12 @@ namespace nil::clix
 
     const SubNode* find(const Node& node, std::string_view name)
     {
-        auto result = std::find_if(
-            std::begin(node.sub),
-            std::end(node.sub),
-            [&](const auto& subnode) { return subnode.key == name; }
-        );
-
-        if (result != std::end(node.sub))
+        for (const auto& s : node.sub)
         {
-            return std::addressof(*result);
+            if (s.key == name)
+            {
+                return &s;
+            }
         }
         return nullptr;
     }
@@ -147,9 +143,9 @@ namespace nil::clix
     // NOLINTNEXTLINE(readability-function-cognitive-complexity)
     int run(const Node& node, int argc, const char* const* argv)
     {
-        if (argc > 1)
+        if (argc > 0)
         {
-            if (std::string_view(argv[1]) == ".fzf")
+            if (std::string_view(argv[0]) == ".fzf")
             {
                 for (const auto& subnode : node.sub)
                 {
@@ -200,33 +196,20 @@ namespace nil::clix
                 }
                 return 0;
             }
-            if (const auto* subnode = find(node, argv[1]); subnode != nullptr)
+            if (const auto* subnode = find(node, argv[0]); subnode != nullptr)
             {
                 Node next_node;
                 if (subnode->exec)
                 {
                     subnode->exec(next_node);
                 }
-                return run(next_node, argc - 1, std::next(argv));
+                return run(next_node, argc - 1, argv + 1);
             }
         }
 
         if (node.exec)
         {
-            try
-            {
-                return node.exec(parse(node.opts, node.sub, argc, argv));
-            }
-            catch (const std::exception& ex)
-            {
-                std::fprintf(stderr, "%s\n", ex.what());
-                return 1;
-            }
-            catch (...)
-            {
-                std::fprintf(stderr, "[nil][clix] unknown error\n");
-                return 2;
-            }
+            return node.exec(parse(node.opts, node.sub, argc, argv));
         }
         return 0;
     }

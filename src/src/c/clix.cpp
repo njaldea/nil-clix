@@ -100,7 +100,20 @@ extern "C"
 
     int nil_clix_node_run(nil_clix_node node, int argc, const char* const* argv)
     {
-        return nil::clix::run(*to_node(node), argc, argv);
+        try
+        {
+            return nil::clix::run(*to_node(node), argc, argv);
+        }
+        catch (const std::exception& ex)
+        {
+            std::fprintf(stderr, "%s\n", ex.what());
+            return 1;
+        }
+        catch (...)
+        {
+            std::fprintf(stderr, "[nil][clix] unknown error\n");
+            return 2;
+        }
     }
 
     void nil_clix_node_flag(nil_clix_node node, const char* lkey, nil_clix_flag_info info)

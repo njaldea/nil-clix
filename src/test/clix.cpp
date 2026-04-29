@@ -5,23 +5,22 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <iostream>
 
 namespace
 {
     auto help(const std::string& c)
     {
-        return 
-            "OPTIONS:"
-            "\n  -f [ --flag ]                         flag msg"
-            "\n  -n [ --number ] [=value(=1)] (=0)     number msg"
-            "\n  -p [ --param ] text (=\"default value\")"
-            "\n                                        param msg"
-            "\n  -m [ --mparam ] text                  mparam msg"
-            "\n"
-            "\nSUBCOMMANDS:"
-            "\n  sub" + c + "                                  description of sub" + c +
-            "\n"
-            "\n";
+        return "OPTIONS:"
+               "\n  -f [ --flag ]                         flag msg"
+               "\n  -n [ --number ] [=value(=1)] (=0)     number msg"
+               "\n  -p [ --param ] text (=\"default value\")"
+               "\n                                        param msg"
+               "\n  -m [ --mparam ] texts                 mparam msg"
+               "\n"
+               "\nSUBCOMMANDS:"
+               "\n  sub"
+            + c + "                                  description of sub" + c;
     }
 
     void apply(nil::clix::Node& node, testing::MockFunction<int(const nil::clix::Options&)>& mock)
@@ -56,7 +55,7 @@ TEST(cli, depth_one)
         .WillOnce(testing::Return(0))
         .RetiresOnSaturation();
 
-    auto args = std::array{"Program"};
+    auto args = std::array<const char*, 0>{};
 
     auto node = nil::clix::make_node();
     apply(node, mock);
@@ -90,12 +89,20 @@ TEST(cli, depth_deep)
                 });
         });
 
-    const auto matches = [](std::string cmd, std::string h)
+    const auto matches = [](std::string h)
     {
-        return [c = std::move(cmd), h = std::move(h)](const nil::clix::Options& output)
+        return [h = std::move(h)](const nil::clix::Options& output)
         {
             std::ostringstream oss;
             help(output, oss);
+            std::cout << __FILE__ << ':' << __LINE__ << ':' << (const char*)(__FUNCTION__)
+                      << std::endl;
+            std::cout << oss.str() << std::endl;
+            std::cout << __FILE__ << ':' << __LINE__ << ':' << (const char*)(__FUNCTION__)
+                      << std::endl;
+            std::cout << help(h) << std::endl;
+            std::cout << __FILE__ << ':' << __LINE__ << ':' << (const char*)(__FUNCTION__)
+                      << std::endl;
             return oss.str() == help(h)                      //
                 && !flag(output, "flag")                     //
                 && number(output, "number") == 0             //
@@ -104,7 +111,7 @@ TEST(cli, depth_deep)
         };
     };
     {
-        EXPECT_CALL(mock, Call(testing::Truly(matches("Program", "1"))))
+        EXPECT_CALL(mock, Call(testing::Truly(matches("1"))))
             .Times(1)
             .WillOnce(testing::Return(0))
             .RetiresOnSaturation();
@@ -113,7 +120,7 @@ TEST(cli, depth_deep)
         ASSERT_EQ(run(root, args.size(), args.data()), 0);
     }
     {
-        EXPECT_CALL(mock, Call(testing::Truly(matches("sub1", "2"))))
+        EXPECT_CALL(mock, Call(testing::Truly(matches("2"))))
             .Times(1)
             .WillOnce(testing::Return(0))
             .RetiresOnSaturation();
@@ -122,7 +129,7 @@ TEST(cli, depth_deep)
         ASSERT_EQ(run(root, args.size(), args.data()), 0);
     }
     {
-        EXPECT_CALL(mock, Call(testing::Truly(matches("sub2", "3"))))
+        EXPECT_CALL(mock, Call(testing::Truly(matches("3"))))
             .Times(1)
             .WillOnce(testing::Return(0))
             .RetiresOnSaturation();

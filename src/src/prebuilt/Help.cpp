@@ -20,6 +20,7 @@ namespace nil::clix::prebuilt
         if (os != nullptr)
         {
             help(options, *os);
+            *os << '\n';
         }
         return 0;
     }
