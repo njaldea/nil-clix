@@ -225,14 +225,23 @@ class Options:
 
 
 class Node:
-    __slots__ = ("_refs", "_fns", "_clix", "_libc", "_node")
+    __slots__ = ("_refs", "_fns", "_clix", "_libc", "_node", "_owns_handle")
 
-    def __init__(self, refs: Dict[int, RefState], fns: _FnsState, clix: Any, libc: Any, node: nil_clixNode) -> None:
+    def __init__(
+        self, refs: Dict[int, RefState], fns: _FnsState, clix: Any, libc: Any, node: nil_clixNode, owns_handle: bool
+    ) -> None:
         self._refs = refs
         self._fns = fns
         self._clix = clix
         self._libc = libc
         self._node = node
+        self._owns_handle = owns_handle
+
+    def __del__(self) -> None:
+        try:
+            self.destroy()
+        except Exception:
+            pass
 
     def flag(self, lkey: str, skey: Optional[str] = None, msg: str = "") -> None:
         flag_info = nil_clixFlagInfo(
@@ -314,7 +323,12 @@ class Node:
         return int(self._clix.nil_clix_node_run(self._node, argc, c_argv))
 
     def destroy(self) -> None:
+        if not self._owns_handle:
+            return
+        if not self._node.handle:
+            return
         self._clix.nil_clix_node_destroy(self._node)
+        self._node.handle = None
 
 
 class Clix:
@@ -338,7 +352,7 @@ class Clix:
 
         @NIL_CLIX_SUB
         def sub_exec(node_ptr: Any, ptr: Any) -> None:
-            node_obj = Node(self._refs, self._fns, self._clix, self._libc, node_ptr.contents)
+            node_obj = Node(self._refs, self._fns, self._clix, self._libc, node_ptr.contents, False)
             self._refs[_to_ref_id(ptr)].exec(node_obj)
 
         @NIL_CLIX_WRITE
@@ -362,7 +376,7 @@ class Clix:
 
     def create_node(self) -> Node:
         node = self._clix.nil_clix_node_create()
-        return Node(self._refs, self._fns, self._clix, self._libc, node)
+        return Node(self._refs, self._fns, self._clix, self._libc, node, True)
 
 
 def _load_clix_from_module_dir() -> Clix:

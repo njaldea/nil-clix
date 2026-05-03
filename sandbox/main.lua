@@ -3,11 +3,11 @@ package.path = package.path .. ";../src/ffi/lua/?.lua"
 local clix = require("nil_clix")
 
 local root = clix.create_node()
-root:flag("help", "h", "show this help")
+root:flag("help", { skey = "h", msg = "show this help" })
 
 root:sub("flags", "command for flags", function(node)
-    node:flag("help", "h", "show this help")
-    node:flag("spawn", "s", "spawn")
+    node:flag("help", { skey = "h", msg = "show this help" })
+    node:flag("spawn", { skey = "s", msg = "spawn" })
     node:use(function(options)
         if options:flag("help") then
             print(options:help())
@@ -23,9 +23,9 @@ root:sub("flags", "command for flags", function(node)
 end)
 
 root:sub("numbers", "command for numbers", function(node)
-    node:flag("help", "h", "show this help")
-    node:number("thread", "t", "number of threads")
-    node:number("job", "j", "number of jobs", 1, 0)
+    node:flag("help", { skey = "h", msg = "show this help" })
+    node:number("thread", { skey = "t", msg = "number of threads" })
+    node:number("job", { skey = "j", msg = "number of jobs", fallback = 1, implicit = 0 })
     node:use(function(options)
         if options:flag("help") then
             print(options:help())
@@ -44,9 +44,9 @@ root:sub("numbers", "command for numbers", function(node)
 end)
 
 root:sub("params", "command for params", function(node)
-    node:flag("help", "h", "show this help")
-    node:param("param", "p", "default param")
-    node:params("mparam", "m", "multiple params")
+    node:flag("help", { skey = "h", msg = "show this help" })
+    node:param("param", { skey = "p", msg = "default param" })
+    node:params("mparam", { skey = "m", msg = "multiple params" })
     node:use(function(options)
         if options:flag("help") then
             print(options:help())
