@@ -122,11 +122,11 @@ end
 ---@field params fun(self: nil_clix.Options, lkey: string): string[]
 
 ---@class nil_clix.Node
----@field flag fun(self: nil_clix.Node, lkey: string, skey: string|nil, msg: string)
----@field number fun(self: nil_clix.Node, lkey: string, skey: string|nil, msg: string, fallback: number|nil, implicit: number|nil)
----@field param fun(self: nil_clix.Node, lkey: string, skey: string|nil, msg: string, fallback: string|nil)
----@field params fun(self: nil_clix.Node, lkey: string, skey: string|nil, msg: string)
----@field use fun(self: nil_clix.Node, fn: fun(options: nil_clix.Options): number)
+---@field flag fun(self: nil_clix.Node, lkey: string, opts: { skey?: string, msg?: string }|nil)
+---@field number fun(self: nil_clix.Node, lkey: string, opts: { skey?: string, msg?: string, fallback?: number, implicit?: number }|nil)
+---@field param fun(self: nil_clix.Node, lkey: string, opts: { skey?: string, msg?: string, fallback?: string }|nil)
+---@field params fun(self: nil_clix.Node, lkey: string, opts: { skey?: string, msg?: string }|nil)
+---@field use fun(self: nil_clix.Node, fn: fun(options: nil_clix.Options): number|nil)
 ---@field sub fun(self: nil_clix.Node, key: string, description: string, fn: fun(node: nil_clix.Node))
 ---@field run fun(self: nil_clix.Node, argv: string[]): number
 ---@field destroy fun(self: nil_clix.Node)
@@ -186,31 +186,34 @@ local function create_options(refs, lua_fns, clix, options)
 end
 
 ---@return nil_clix.Node
-local function create_node(refs, lua_fns, clix, node)
+local function create_node(refs, lua_fns, clix, node, owns_handle)
     return {
         _node = node,
-        flag = function(self, lkey, skey, msg)
+        _owns_handle = owns_handle,
+        flag = function(self, lkey, opts)
+            opts = opts or {}
             local flag_info = ffi.new("nil_clix_flag_info")
-            flag_info.skey = skey
-            flag_info.msg = msg
+            flag_info.skey = opts.skey
+            flag_info.msg = opts.msg
             clix.nil_clix_node_flag(self._node, lkey, flag_info)
         end,
-        number = function(self, lkey, skey, msg, fallback, implicit)
+        number = function(self, lkey, opts)
+            opts = opts or {}
             local number_info = ffi.new("nil_clix_number_info")
-            number_info.skey = skey
-            number_info.msg = msg
+            number_info.skey = opts.skey
+            number_info.msg = opts.msg
 
             local fallback_ptr = nil
             local implicit_ptr = nil
 
-            if fallback ~= nil then
+            if opts.fallback ~= nil then
                 fallback_ptr = ffi.new("int64_t")
-                fallback_ptr[0] = fallback
+                fallback_ptr[0] = opts.fallback
             end
 
-            if implicit ~= nil then
+            if opts.implicit ~= nil then
                 implicit_ptr = ffi.new("int64_t")
-                implicit_ptr[0] = implicit
+                implicit_ptr[0] = opts.implicit
             end
 
             number_info.fallback = fallback_ptr
@@ -218,17 +221,19 @@ local function create_node(refs, lua_fns, clix, node)
 
             clix.nil_clix_node_number(self._node, lkey, number_info)
         end,
-        param = function(self, lkey, skey, msg, fallback)
+        param = function(self, lkey, opts)
+            opts = opts or {}
             local param_info = ffi.new("nil_clix_param_info")
-            param_info.skey = skey
-            param_info.msg = msg
-            param_info.fallback = fallback
+            param_info.skey = opts.skey
+            param_info.msg = opts.msg
+            param_info.fallback = opts.fallback
             clix.nil_clix_node_param(self._node, lkey, param_info)
         end,
-        params = function(self, lkey, skey, msg)
+        params = function(self, lkey, opts)
+            opts = opts or {}
             local params_info = ffi.new("nil_clix_params_info")
-            params_info.skey = skey
-            params_info.msg = msg
+            params_info.skey = opts.skey
+            params_info.msg = opts.msg
             clix.nil_clix_node_params(self._node, lkey, params_info)
         end,
         use = function(self, fn)
@@ -264,7 +269,15 @@ local function create_node(refs, lua_fns, clix, node)
             return tonumber(clix.nil_clix_node_run(self._node, argc, c_argv))
         end,
         destroy = function(self)
+            if not self._owns_handle then
+                return
+            end
+            if self._node.handle == nil then
+                return
+            end
+            ffi.gc(self._node, nil)
             clix.nil_clix_node_destroy(self._node)
+            self._node.handle = nil
         end
     }
 end
@@ -291,7 +304,7 @@ local function create_clix()
     local sub_exec = ffi.cast(
         "void (*)(nil_clix_node*, void*)",
         function(node_ptr, id)
-            local node_obj = create_node(refs, lua_fns, clix, node_ptr[0])
+            local node_obj = create_node(refs, lua_fns, clix, node_ptr[0], false)
             refs[to_ref_id(id)].fn(node_obj)
         end
     )
@@ -326,7 +339,8 @@ local function create_clix()
     return {
         create_node = function()
             local node = clix.nil_clix_node_create()
-            return create_node(refs, lua_fns, clix, node)
+            node = ffi.gc(node, clix.nil_clix_node_destroy)
+            return create_node(refs, lua_fns, clix, node, true)
         end
     }
 end

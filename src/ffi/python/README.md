@@ -1,6 +1,6 @@
-# nil-clix Python Binding
+# nil-clix
 
-Python binding for **nil/clix** – an Opinionated Argument Parser
+Python binding for **nil-clix** – an Opinionated Argument Parser
 
 ## Links
 
@@ -43,6 +43,38 @@ node.use(handler)
 # Run
 exit_code = node.run(["-v", "-c", "my.yml", "-t", "8"])
 ```
+
+### Subcommands
+
+```python
+from nil_clix import create_node
+
+node = create_node()
+
+def init_cmd(cmd):
+    cmd.flag("force", "f", "Force initialization")
+
+    def run_init(options):
+        if options.flag("force"):
+            print("Init: forced")
+        else:
+            print("Init: normal")
+        return 0
+
+    cmd.use(run_init)
+
+node.sub("init", "Initialize the project", init_cmd)
+
+exit_code = node.run(["init", "-f"])
+```
+
+## Lifetime Notes
+
+Root nodes are owning handles. The Python binding registers a GC finalizer so
+the underlying node is destroyed if the object is collected. Finalizer timing
+is nondeterministic and may not run at shutdown, so call `destroy()` for
+deterministic teardown. Subcommand nodes passed to callbacks are non-owning
+views and must not be stored or destroyed.
 
 ## Documentation
 
