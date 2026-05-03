@@ -141,13 +141,21 @@ local function create_options(refs, lua_fns, clix, options)
         help = function(self)
             local output = {}
             local writer_id = ffi.C.malloc(1)
-            refs[to_ref_id(writer_id)] = { output = output }
+            if writer_id == nil then
+                error("malloc failed")
+            end
+
+            local ref_id = to_ref_id(writer_id)
+            refs[ref_id] = { output = output }
 
             local write_info = ffi.new("nil_clix_write_info")
             write_info.exec = lua_fns.write_exec
             write_info.context = writer_id
 
             clix.nil_clix_options_help(self._options, write_info)
+
+            refs[ref_id] = nil
+            ffi.C.free(writer_id)
             return table.concat(output)
         end,
         has_value = function(self, lkey)
@@ -272,7 +280,11 @@ local function create_clix()
         "int (*)(const nil_clix_options*, void*)",
         function(options_ptr, id)
             local options_obj = create_options(refs, lua_fns, clix, options_ptr[0])
-            return refs[to_ref_id(id)].fn(options_obj)
+            local result = refs[to_ref_id(id)].fn(options_obj)
+            if result == nil then
+                return 0
+            end
+            return result
         end
     )
 
