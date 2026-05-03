@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-ExecFn = Callable[["Options"], int]
+ExecFn = Callable[["Options"], Optional[int]]
 SubFn = Callable[["Node"], None]
 
 
@@ -93,6 +93,11 @@ class _ExecState:
     __slots__ = ("fn",)
     fn: ExecFn
 
+    def exec(self, arg: Options) -> int:
+        v = self.fn(arg)
+        if v is not None:
+            return v
+        return 0
 
 @dataclass
 class _SubState:
@@ -181,14 +186,19 @@ class Options:
         if not writer_id:
             raise MemoryError("malloc failed")
 
-        self._refs[_to_ref_id(writer_id)] = _WriteState(output=output)
+        ref_id = _to_ref_id(writer_id)
+        self._refs[ref_id] = _WriteState(output=output)
 
         write_info = nil_clixWriteInfo(
             exec=self._fns.write_exec,
             context=ctypes.c_void_p(writer_id),
         )
 
-        self._clix.nil_clix_options_help(self._options, write_info)
+        try:
+            self._clix.nil_clix_options_help(self._options, write_info)
+        finally:
+            self._refs.pop(ref_id, None)
+            self._libc.free(writer_id)
         return "".join(output)
 
     def has_value(self, lkey: str) -> bool:
@@ -324,12 +334,12 @@ class Clix:
         @NIL_CLIX_EXEC
         def exec_exec(options_ptr: Any, ptr: Any) -> int:
             options_obj = Options(self._refs, self._fns, self._clix, self._libc, options_ptr.contents)
-            return self._refs[_to_ref_id(ptr)].fn(options_obj)
+            return self._refs[_to_ref_id(ptr)].exec(options_obj)
 
         @NIL_CLIX_SUB
         def sub_exec(node_ptr: Any, ptr: Any) -> None:
             node_obj = Node(self._refs, self._fns, self._clix, self._libc, node_ptr.contents)
-            self._refs[_to_ref_id(ptr)].fn(node_obj)
+            self._refs[_to_ref_id(ptr)].exec(node_obj)
 
         @NIL_CLIX_WRITE
         def write_exec(data: Any, size: int, ptr: Any) -> None:
